@@ -7,7 +7,7 @@ pytz
 python-jose[cryptography]
 PyJWT
 passlib[bcrypt]==1.7.4
-bcrypt==3.2.2
+bcrypt==5.0.0
 httpx>=0.20.0
 jinja2
 opentelemetry-api
