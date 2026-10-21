@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="assets/icons/favicon.ico?v=2" type="image/x-icon">
+    <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2" type="image/x-icon">
+    <title>Anomalía - Iniciar Sesión</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/qrcode.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 flex items-center justify-center min-h-screen">
+    <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-700">
+        <div class="text-center mb-8">
+            <img src="assets/images/logo.png" alt="Anomalía" class="mx-auto h-24 object-contain">
+        </div>
+
+        <div id="error-alert" class="hidden bg-red-500/10 border border-red-500 text-red-400 px-4 py-3 rounded mb-6 text-sm"></div>
+
+        <form id="login-form" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Email</label>
+                <input type="email" id="username" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Contraseña</label>
+                <input type="password" id="password" required 
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+            </div>
+            <button type="submit" 
+                class="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-3 rounded-lg transition shadow-lg shadow-cyan-600/20">
+                Entrar
+            </button>
+        </form>
+
+        <div id="oidc-container" class="mt-6 pt-6 border-t border-slate-700 text-center hidden">
+            <p class="text-xs text-slate-400 mb-4">O bien conéctate mediante identidad corporativa</p>
+            <button id="oidc-btn" 
+                class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-2.5 rounded-lg transition border border-slate-600 flex items-center justify-center gap-2">
+                <span>🔑 Acceder con SSO (OIDC)</span>
+            </button>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-slate-700">
+            <button type="button" id="mobileAccessToggle" class="w-full flex items-center justify-between text-sm font-medium text-slate-300 hover:text-slate-100 transition">
+                <span>Acceso desde app móvil</span>
+                <i id="mobileAccessChevron" class="fa-solid fa-chevron-down text-xs"></i>
+            </button>
+            <div id="mobileAccessPanel" class="hidden mt-2">
+                <p class="text-xs text-slate-400 mb-2">URL del gateway para la app móvil:</p>
+                <div class="flex gap-2 mb-2">
+                    <input type="text" id="mobileUrl" readonly class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 text-sm" />
+                    <button id="copyMobileUrl" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm transition">Copiar</button>
+                </div>
+                <div class="flex justify-center">
+                    <div id="mobileQr"></div>
+                </div>
+                <p class="text-xs text-slate-500 text-center mt-2">Escanea con la app móvil (deep link anomalia://config)</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const EMAIL_REGEX = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+
+        // Mostrar error devuelto por el callback OIDC (?error=...).
+        (function () {
+            const p = new URLSearchParams(window.location.search);
+            const err = p.get('error');
+            if (err) {
+                const alertEl = document.getElementById('error-alert');
+                alertEl.textContent = err;
+                alertEl.classList.remove('hidden');
+            }
+        })();
+
+        // Verificar modo de autenticación al cargar
+        fetch('/api/v1/settings/auth')
+            .then(res => res.json())
+            .then(data => {
+                const mode = data.auth_mode || 'local';
+                const localEnabled = data.local_enabled !== undefined
+                    ? data.local_enabled
+                    : (mode !== 'oidc_only');
+                const oidcEnabled = data.oidc_enabled || mode === 'hybrid' || mode === 'oidc_only';
+
+                if (!localEnabled) {
+                    document.getElementById('login-form').classList.add('hidden');
+                }
+                if (oidcEnabled) {
+                    document.getElementById('oidc-container').classList.remove('hidden');
+                }
+            })
+            .catch(() => { /* sin config: se mantiene solo local */ });
+
+        // Manejo de Login Local (UI Web)
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorAlert = document.getElementById('error-alert');
+
+            errorAlert.classList.add('hidden');
+
+            if (!EMAIL_REGEX.test(username)) {
+                errorAlert.textContent = 'Formato de email invalido.';
+                errorAlert.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/auth/ui-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Credenciales inválidas');
+                }
+
+                // Guardar token, roles y atributos de sesión en localStorage para persistencia completa
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('username', data.username || username);
+                localStorage.setItem('roles', JSON.stringify(data.roles || ['viewer']));
+                localStorage.setItem('role', data.role || 'viewer');
+                if (data.tenants) {
+                    localStorage.setItem('tenants', JSON.stringify(data.tenants));
+                }
+
+                // Redirigir al index/dashboard
+                window.location.href = '/';
+            } catch (err) {
+                errorAlert.textContent = err.message;
+                errorAlert.classList.remove('hidden');
+            }
+        });
+
+        // Manejo de Botón OIDC
+        document.getElementById('oidc-btn').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/v1/oidc/login?session_type=web');
+                const data = await res.json();
+                if (data.auth_url) {
+                    window.location.href = data.auth_url;
+                } else {
+                    throw new Error(data.detail || 'No se pudo iniciar OIDC');
+                }
+            } catch (err) {
+                const alertEl = document.getElementById('error-alert');
+                alertEl.textContent = err.message || 'No se pudo conectar con el servidor OIDC';
+                alertEl.classList.remove('hidden');
+            }
+        });
+
+        // Mostrar URL móvil y QR
+        (function () {
+            const mobileUrlEl = document.getElementById('mobileUrl');
+            const copyBtn = document.getElementById('copyMobileUrl');
+            const qrEl = document.getElementById('mobileQr');
+            const baseUrl = window.location.origin;
+            const mobileConfigUrl = 'anomalia://config?base_url=' + encodeURIComponent(baseUrl);
+            if (mobileUrlEl) {
+                mobileUrlEl.value = baseUrl;
+            }
+            if (copyBtn && mobileUrlEl) {
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(baseUrl).then(() => {
+                        const prev = copyBtn.textContent;
+                        copyBtn.textContent = 'Copiado';
+                        setTimeout(() => (copyBtn.textContent = prev), 1200);
+                    });
+                });
+            }
+            if (qrEl && typeof QRCode !== 'undefined') {
+                new QRCode(qrEl, {
+                    text: mobileConfigUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H,
+                });
+            }
+        })();
+
+        // Colapsable "Acceso desde app móvil"
+        (function () {
+            const toggle = document.getElementById('mobileAccessToggle');
+            const panel = document.getElementById('mobileAccessPanel');
+            const chevron = document.getElementById('mobileAccessChevron');
+            if (!toggle || !panel) return;
+            toggle.addEventListener('click', () => {
+                const open = panel.classList.toggle('hidden');
+                if (chevron) {
+                    chevron.classList.toggle('fa-chevron-down', open);
+                    chevron.classList.toggle('fa-chevron-up', !open);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

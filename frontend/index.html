@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="es" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="assets/icons/favicon.ico?v=2" type="image/x-icon">
+    <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2" type="image/x-icon">
+    <title>Anomalía - Plataforma de Observabilidad y AIOps</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <style>
+        .theme-enterprise-blue { background-color: #0f172a; color: #f8fafc; }
+        .theme-enterprise-blue .dynamic-card { background-color: #1e293b; border-color: #334155; color: #f8fafc; }
+        .theme-enterprise-blue .dynamic-accent { background-color: #3b82f6; color: #ffffff; }
+        .theme-enterprise-blue .dynamic-text-accent { color: #60a5fa; }
+        .theme-enterprise-blue .dynamic-border { border-color: #334155; }
+        .theme-enterprise-blue .dynamic-input { background-color: #0f172a; border-color: #475569; color: #ffffff; }
+
+        .theme-cyberpunk { background-color: #0d0221; color: #00ffcc; }
+        .theme-cyberpunk .dynamic-card { background-color: #190b28; border-color: #ff007f; color: #00ffcc; }
+        .theme-cyberpunk .dynamic-accent { background-color: #ff007f; color: #ffffff; }
+        .theme-cyberpunk .dynamic-text-accent { color: #ff007f; }
+        .theme-cyberpunk .dynamic-border { border-color: #ff007f; }
+        .theme-cyberpunk .dynamic-input { background-color: #0d0221; border-color: #ff007f; color: #00ffcc; }
+
+        .theme-sunset { background-color: #2b1055; color: #ffecd2; }
+        .theme-sunset .dynamic-card { background-color: #3b145b; border-color: #ff7e5f; color: #ffecd2; }
+        .theme-sunset .dynamic-accent { background-color: #ff7e5f; color: #ffffff; }
+        .theme-sunset .dynamic-text-accent { color: #feb47b; }
+        .theme-sunset .dynamic-border { border-color: #ff7e5f; }
+        .theme-sunset .dynamic-input { background-color: #2b1055; border-color: #ff7e5f; color: #ffecd2; }
+
+        .theme-boca-juniors { background-color: #002244; color: #ffcc00; }
+        .theme-boca-juniors .dynamic-card { background-color: #003366; border-color: #ffcc00; color: #ffcc00; }
+        .theme-boca-juniors .dynamic-accent { background-color: #ffcc00; color: #002244; }
+        .theme-boca-juniors .dynamic-text-accent { color: #ffcc00; }
+        .theme-boca-juniors .dynamic-border { border-color: #ffcc00; }
+        .theme-boca-juniors .dynamic-input { background-color: #001a33; border-color: #ffcc00; color: #ffcc00; }
+
+        .theme-light-blue { background-color: #f0fdf4; color: #0f172a; }
+        .theme-light-blue .dynamic-card { background-color: #ffffff; border-color: #bae6fd; color: #0f172a; }
+        .theme-light-blue .dynamic-accent { background-color: #0284c7; color: #ffffff; }
+        .theme-light-blue .dynamic-text-accent { color: #0284c7; }
+        .theme-light-blue .dynamic-border { border-color: #e0f2fe; }
+        .theme-light-blue .dynamic-input { background-color: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
+
+        .theme-light-emerald { background-color: #f0fdf4; color: #064e3b; }
+        .theme-light-emerald .dynamic-card { background-color: #ffffff; border-color: #a7f3d0; color: #064e3b; }
+        .theme-light-emerald .dynamic-accent { background-color: #059669; color: #ffffff; }
+        .theme-light-emerald .dynamic-text-accent { color: #059669; }
+        .theme-light-emerald .dynamic-border { border-color: #d1fae5; }
+        .theme-light-emerald .dynamic-input { background-color: #f9fafb; border-color: #a7f3d0; color: #064e3b; }
+
+        .theme-blanco-clasico { background-color: #ffffff; color: #222222; }
+        .theme-blanco-clasico .dynamic-card { background-color: #f7f7f7; border-color: #cccccc; color: #222222; }
+        .theme-blanco-clasico .dynamic-accent { background-color: #333333; color: #ffffff; }
+        .theme-blanco-clasico .dynamic-text-accent { color: #111111; }
+        .theme-blanco-clasico .dynamic-border { border-color: #dddddd; }
+        .theme-blanco-clasico .dynamic-input { background-color: #ffffff; border-color: #bbbbbb; color: #222222; }
+
+        .theme-gris { background-color: #374151; color: #f3f4f6; }
+        .theme-gris .dynamic-card { background-color: #4b5563; border-color: #6b7280; color: #f3f4f6; }
+        .theme-gris .dynamic-accent { background-color: #9ca3af; color: #1f2937; }
+        .theme-gris .dynamic-text-accent { color: #d1d5db; }
+        .theme-gris .dynamic-border { border-color: #6b7280; }
+        .theme-gris .dynamic-input { background-color: #374151; border-color: #9ca3af; color: #ffffff; }
+    </style>
+    
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('user_theme') || 'theme-enterprise-blue';
+            document.documentElement.className = savedTheme;
+        })();
+    </script>
+</head>
+<body class="min-h-screen flex flex-col transition-colors duration-300">
+
+    <header class="dynamic-card border-b px-6 py-4 flex justify-between items-center shadow-md z-20">
+        <div class="flex items-center space-x-3">
+            <img src="assets/images/logo.png" alt="Anomalía" class="h-14 object-contain">
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <!-- Global AI Assistant & Documentation Nav Action Buttons -->
+            <div class="flex items-center space-x-2">
+                <button id="gitbook-toggle-nav" class="dynamic-card hover:opacity-80 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 border" title="Abrir Documentación GitBook">
+                    <i class="fa-solid fa-book dynamic-text-accent"></i>
+                    <span class="hidden lg:inline">Docs</span>
+                </button>
+                <button id="ai-assistant-toggle-nav" class="dynamic-accent hover:opacity-90 px-3 py-2 rounded-lg text-sm font-semibold transition flex items-center space-x-2 shadow" title="Asistente IA">
+                    <i class="fa-solid fa-robot"></i>
+                    <span class="hidden lg:inline">Asistente IA</span>
+                </button>
+            </div>
+
+            <!-- Centro de notificaciones (spec 017): campana + badge + panel -->
+            <div class="relative" id="notifications-container">
+                <button id="btn-notifications" class="dynamic-card hover:opacity-80 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center border relative" title="Notificaciones">
+                    <i class="fa-solid fa-bell dynamic-text-accent"></i>
+                    <span id="notifications-badge" class="hidden absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+                </button>
+                <div id="notifications-panel" class="hidden absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto dynamic-card border rounded-xl shadow-lg z-30 p-2">
+                    <div class="flex justify-between items-center px-2 py-1 border-b dynamic-border">
+                        <span class="font-semibold text-sm">Notificaciones</span>
+                        <button id="notifications-mark-all" class="text-xs dynamic-text-accent hover:underline">Marcar todas</button>
+                    </div>
+                    <div id="notifications-list" class="pt-1"></div>
+                </div>
+            </div>
+
+            <div id="admin-sidebar-toggle-container" class="hidden">
+                <button id="btn-toggle-sidebar" class="dynamic-card hover:opacity-80 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 border">
+                    <i class="fa-solid fa-sliders dynamic-text-accent"></i>
+                    <span>Panel de Control</span>
+                </button>
+            </div>
+
+            <div class="relative">
+                <button id="profile-menu-button" class="flex items-center space-x-3 focus:outline-none dynamic-card hover:opacity-90 p-2 rounded-xl transition border">
+                    <img id="user-avatar" src="/media/default.png" alt="Avatar" class="w-8 h-8 rounded-full object-cover border-2 dynamic-border">
+                    <div class="text-left hidden md:block">
+                        <p id="user-display-name" class="text-sm font-semibold leading-tight">Cargando...</p>
+                        <p id="user-display-role" class="text-xs opacity-75">Rol: --</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        
+        <aside id="admin-sidebar" class="w-72 dynamic-card border-r flex flex-col transition-all duration-300 hidden z-10">
+            <div class="p-4 border-b dynamic-border flex justify-between items-center">
+                <span class="font-bold text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-shield-halved dynamic-text-accent"></i>
+                    <span>Panel de Control AIOps</span>
+                </span>
+                <button id="btn-close-sidebar" class="md:hidden opacity-75 hover:opacity-100">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-4 border-b dynamic-border">
+                <button id="btn-return-main" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-3 transition dynamic-accent">
+                    <i class="fa-solid fa-house w-5"></i><span>Volver al Inicio</span>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-1" id="admin-sidebar-menu"></div>
+        </aside>
+
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-y-auto">
+
+            <!-- Banner global: proveedor de IA degradado / cuota agotada (spec 018) -->
+            <div id="ai-status-banner" class="hidden mb-6 rounded-lg border border-amber-400 dynamic-card px-4 py-3 text-sm flex items-start space-x-3">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
+                <div class="flex-1">
+                    <p id="ai-status-banner-title" class="font-semibold">Proveedor de IA no disponible</p>
+                    <p id="ai-status-banner-message" class="opacity-80"></p>
+                </div>
+                <button type="button" id="ai-status-banner-close" class="opacity-60 hover:opacity-100" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="main-tabs-container" class="flex border-b dynamic-border mb-8 space-x-4 overflow-x-auto">
+                <button data-tab="metrics" id="tab-btn-metrics" class="tab-btn pb-3 px-2 border-b-2 border-current dynamic-text-accent font-medium text-sm flex items-center space-x-2 transition whitespace-nowrap">
+                    <i class="fa-solid fa-server"></i><span>Métricas</span>
+                </button>
+                <button data-tab="logs" id="tab-btn-logs" class="tab-btn pb-3 px-2 border-b-2 border-transparent opacity-70 hover:opacity-100 font-medium text-sm flex items-center space-x-2 transition whitespace-nowrap">
+                    <i class="fa-solid fa-file-lines"></i><span>Logs</span>
+                </button>
+                <button data-tab="traces" id="tab-btn-traces" class="tab-btn pb-3 px-2 border-b-2 border-transparent opacity-70 hover:opacity-100 font-medium text-sm flex items-center space-x-2 transition whitespace-nowrap">
+                    <i class="fa-solid fa-route"></i><span>Trazas</span>
+                </button>
+                <button data-tab="alerts" id="tab-btn-alerts" class="tab-btn pb-3 px-2 border-b-2 border-transparent opacity-70 hover:opacity-100 font-medium text-sm flex items-center space-x-2 transition whitespace-nowrap">
+                    <i class="fa-solid fa-bell"></i><span>Alertas</span>
+                </button>
+                <button data-tab="profiling" id="tab-btn-profiling" class="tab-btn pb-3 px-2 border-b-2 border-transparent opacity-70 hover:opacity-100 font-medium text-sm flex items-center space-x-2 transition whitespace-nowrap">
+                    <i class="fa-solid fa-microchip"></i><span>Perfilado Continuo</span>
+                </button>
+                <button data-tab="dashboards" id="tab-btn-dashboards" class="tab-btn pb-3 px-2 border-b-2 border-transparent opacity-70 hover:opacity-100 font-medium text-sm flex items-center space-x-2 transition whitespace-nowrap">
+                    <i class="fa-solid fa-chart-pie"></i><span>Dashboards</span>
+                </button>
+            </div>
+
+            <section id="view-metrics" class="tab-view space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-pie dynamic-text-accent"></i>
+                        <span>Tenants de Métricas Autorizados</span>
+                    </h2>
+                    <p class="text-xs opacity-75">Dashboards y métricas de rendimiento por tenant asignado a su perfil.</p>
+                </div>
+                <div id="metrics-tenants-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </section>
+
+            <section id="view-logs" class="tab-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-database dynamic-text-accent"></i>
+                        <span>Tenants de Logs Autorizados</span>
+                    </h2>
+                    <p class="text-xs opacity-75">Acceso a los entornos de almacenamiento y consulta de logs autorizados.</p>
+                </div>
+                <div id="logs-tenants-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </section>
+
+            <section id="view-traces" class="tab-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-route dynamic-text-accent"></i>
+                        <span>Trazas Distribuidas (Tracing)</span>
+                    </h2>
+                    <p class="text-xs opacity-75">Monitoreo de latencia y flujo extremo a extremo.</p>
+                </div>
+                <div id="traces-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </section>
+
+            <section id="view-alerts" class="tab-view hidden space-y-6">
+                <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xl font-bold flex items-center space-x-2">
+                            <i class="fa-solid fa-triangle-exclamation dynamic-text-accent"></i>
+                            <span>Alertas</span>
+                        </h2>
+                        <button id="btn-refresh-alerts" class="dynamic-card border text-xs px-4 py-2 rounded-lg transition">
+                            <i class="fa-solid fa-rotate mr-1"></i> Actualizar
+                        </button>
+                    </div>
+                    <p class="text-xs opacity-75 mb-6">Alertas recientes con diagnóstico IA. Haz clic en una tarjeta para ver el detalle.</p>
+                    <div id="recent-alerts-list" class="space-y-3">
+                        <p class="text-xs opacity-75">Cargando alertas...</p>
+                    </div>
+                </div>
+
+                <div class="dynamic-card border rounded-2xl p-6 shadow-xl mt-6">
+                    <h2 class="text-xl font-bold flex items-center space-x-2 mb-2">
+                        <i class="fa-solid fa-magnifying-glass dynamic-text-accent"></i>
+                        <span>Historial de alertas</span>
+                    </h2>
+                    <p class="text-xs opacity-75 mb-4">Busca entre las alertas antiguas (activas y resueltas). La búsqueda no distingue mayúsculas/minúsculas.</p>
+                    <div class="flex flex-col md:flex-row gap-2 text-sm mb-4">
+                        <input type="text" id="alert-search-input" placeholder="Buscar por nombre, resumen, descripción…"
+                               class="flex-1 dynamic-input border rounded-xl px-3 py-2">
+                        <select id="alert-search-status" class="dynamic-input border rounded-xl px-3 py-2 cursor-pointer">
+                            <option value="">Todos los estados</option>
+                            <option value="firing">Activas</option>
+                            <option value="resolved">Resueltas</option>
+                        </select>
+                        <select id="alert-search-tenant" class="dynamic-input border rounded-xl px-3 py-2 cursor-pointer"></select>
+                        <button id="btn-search-alerts" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap">
+                            <i class="fa-solid fa-magnifying-glass mr-1"></i> Buscar
+                        </button>
+                    </div>
+                    <div id="alert-history-results" class="space-y-3"></div>
+                    <div class="flex justify-between items-center mt-4">
+                        <span id="alert-history-total" class="text-xs opacity-60"></span>
+                        <button id="btn-more-alerts" class="hidden dynamic-card border px-4 py-2 rounded-xl text-xs">Cargar más</button>
+                    </div>
+                </div>
+
+            </section>
+
+            <section id="view-profiling" class="tab-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-microchip dynamic-text-accent"></i>
+                        <span>Perfilado Continuo</span>
+                    </h2>
+                    <p class="text-xs opacity-75">Análisis de CPU y memoria.</p>
+                </div>
+                <div id="profiling-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </section>
+
+            <section id="view-dashboards" class="tab-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-line dynamic-text-accent"></i>
+                        <span>Dashboards de Observabilidad</span>
+                    </h2>
+                    <p class="text-xs opacity-75">Paneles gráficos generales.</p>
+                </div>
+                <div id="dashboards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </section>
+
+            <!-- CONTENEDOR DE ADMINISTRACIÓN Y ABMs -->
+            <div id="admin-views-container" class="hidden space-y-6">
+                
+                <!-- Usuarios (Abm) -->
+                <section id="admin-view-users" class="admin-tab-view space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-users dynamic-text-accent"></i><span>Gestión de Usuarios (Abm)</span></h2>
+                            <div class="space-x-2">
+                                <button id="btn-open-user-modal" class="dynamic-accent text-xs px-3 py-2 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i> Nuevo Usuario</button>
+                                <button id="btn-refresh-users" class="dynamic-card border text-xs px-3 py-2 rounded-lg transition hover:opacity-80"><i class="fa-solid fa-rotate-right mr-1"></i> Actualizar</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b dynamic-border text-xs uppercase opacity-75">
+                                        <th class="py-3 px-4">ID</th>
+                                        <th class="py-3 px-4">Email</th>
+                                        <th class="py-3 px-4">Roles</th>
+                                        <th class="py-3 px-4">Tenants</th>
+                                        <th class="py-3 px-4">Estado</th>
+                                        <th class="py-3 px-4 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body" class="divide-y dynamic-border text-sm">
+                                    <tr><td colspan="6" class="py-4 text-center opacity-75">Cargando usuarios...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tenants (Abm) -->
+                <section id="admin-view-tenants" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-network-wired dynamic-text-accent"></i><span>Gestión de Tenants (Abm)</span></h2>
+                            <div class="space-x-2">
+                                <button id="btn-open-tenant-modal" class="dynamic-accent text-xs px-3 py-2 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i> Nuevo Tenant</button>
+                                <button id="btn-refresh-tenants" class="dynamic-card border text-xs px-3 py-2 rounded-lg transition hover:opacity-80"><i class="fa-solid fa-rotate-right mr-1"></i> Actualizar</button>
+                            </div>
+                        </div>
+                        <div id="admin-tenants-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <p class="text-xs opacity-75">Cargando tenants...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Roles (Abm) -->
+                <section id="admin-view-roles" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-shield-halved dynamic-text-accent"></i><span>ABM de Roles del Sistema</span></h2>
+                            <div class="space-x-2">
+                                <button id="btn-open-role-modal" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i> Nuevo Rol</button>
+                                <button id="btn-refresh-roles" class="dynamic-card border text-xs px-3 py-2 rounded-lg transition hover:opacity-80"><i class="fa-solid fa-rotate-right mr-1"></i> Actualizar</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b dynamic-border text-xs uppercase opacity-75">
+                                        <th class="py-3 px-4">ID</th>
+                                        <th class="py-3 px-4">Nombre</th>
+                                        <th class="py-3 px-4">Descripción</th>
+                                        <th class="py-3 px-4">Asociaciones (Tenants / Perfiles)</th>
+                                        <th class="py-3 px-4 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="roles-table-body" class="divide-y dynamic-border text-sm">
+                                    <tr><td colspan="5" class="py-4 text-center opacity-75">Cargando roles...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Perfiles (Abm) -->
+                <section id="admin-view-profiles" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-id-card dynamic-text-accent"></i><span>ABM de Perfiles de Usuario</span></h2>
+                            <div class="space-x-2">
+                                <button id="btn-open-profile-modal" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i> Crear Perfil</button>
+                                <button id="btn-refresh-profiles" class="dynamic-card border text-xs px-3 py-2 rounded-lg transition hover:opacity-80"><i class="fa-solid fa-rotate-right mr-1"></i> Actualizar</button>
+                            </div>
+                        </div>
+                        <div id="admin-profiles-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <p class="text-xs opacity-75">Cargando perfiles...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="admin-view-general" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-gear dynamic-text-accent"></i><span>Configuración General</span></h2>
+                        </div>
+                        <div class="border rounded-xl p-4 space-y-4">
+                            <button type="button" id="adminMobileAccessToggle" class="w-full flex items-center justify-between text-sm font-bold uppercase tracking-wider dynamic-text-accent hover:opacity-80 transition">
+                                <span class="flex items-center space-x-2"><i class="fa-solid fa-mobile-screen-button"></i><span>Acceso desde app móvil</span></span>
+                                <i id="adminMobileAccessChevron" class="fa-solid fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="adminMobileAccessPanel" class="hidden space-y-4">
+                                <p class="text-xs opacity-75 mb-2">URL del gateway para configurar la app móvil:</p>
+                                <div class="flex gap-2 items-center mb-2">
+                                    <input type="text" id="adminMobileUrl" readonly class="flex-1 dynamic-input border rounded-xl px-3 py-2 text-sm">
+                                    <button id="adminCopyMobileUrl" class="dynamic-accent text-xs px-3 py-2 rounded-lg transition">Copiar</button>
+                                </div>
+                                <div class="flex justify-start">
+                                    <div id="adminMobileQr"></div>
+                                </div>
+                                <p class="text-xs opacity-60 mt-2">Escanea con la app móvil para preconfigurar el servidor (deep link anomalia://config). Requiere HTTPS en producción.</p>
+                            </div>
+                        </div>
+                        <div class="border rounded-xl p-4 space-y-4">
+                            <h3 class="text-sm font-bold uppercase tracking-wider dynamic-text-accent flex items-center space-x-2"><i class="fa-solid fa-envelope"></i><span>Servidor SMTP</span></h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Servidor SMTP</label>
+                                    <input type="text" id="smtp-host" placeholder="smtp.empresa.com" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                    <p class="text-xs opacity-60 mt-1">Gmail/Google Workspace: <span class="font-mono">smtp.gmail.com</span>, puerto <span class="font-mono">587</span>, TLS activado y una <strong>contraseña de aplicación</strong> como contraseña.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Puerto</label>
+                                    <input type="number" id="smtp-port" value="587" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Usuario</label>
+                                    <input type="text" id="smtp-username" placeholder="user@empresa.com" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Contraseña</label>
+                                    <input type="password" id="smtp-password" placeholder="••••••••" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Email Remitente (From)</label>
+                                    <input type="text" id="smtp-from" placeholder="no-reply@empresa.com" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                                <div class="flex items-center space-x-2 pt-5">
+                                    <input type="checkbox" id="smtp-use-tls" class="rounded dynamic-input" checked>
+                                    <label class="text-xs uppercase opacity-75 font-bold">Usar TLS</label>
+                                </div>
+                            </div>
+                            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                                <button id="btn-test-smtp" class="dynamic-card border text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-paper-plane mr-1"></i> Probar SMTP</button>
+                                <button id="btn-save-smtp" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-save mr-1"></i> Guardar SMTP</button>
+                            </div>
+                        </div>
+                        <div class="border rounded-xl p-4 space-y-4">
+                            <h3 class="text-sm font-bold uppercase tracking-wider dynamic-text-accent flex items-center space-x-2"><i class="fa-solid fa-globe"></i><span>Proxy de Egress</span></h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs uppercase opacity-75 mb-1">URL del Proxy</label>
+                                    <input type="text" id="proxy-url" placeholder="http://proxy.empresa.com:8080" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" id="proxy-enabled" class="rounded dynamic-input">
+                                    <label class="text-xs uppercase opacity-75 font-bold">Habilitar Proxy (todas las llamadas salientes del backend)</label>
+                                </div>
+                            </div>
+                            <div class="flex justify-end pt-3 border-t dynamic-border">
+                                <button id="btn-save-proxy" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-save mr-1"></i> Guardar Proxy</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="admin-view-bkp" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl space-y-6">
+                        <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-database dynamic-text-accent"></i><span>Backup de Configuración</span></h2>
+                        <div class="border rounded-xl p-4 space-y-4">
+                            <h3 class="text-sm font-bold uppercase tracking-wider dynamic-text-accent flex items-center space-x-2"><i class="fa-solid fa-download"></i><span>Exportar Backup</span></h3>
+                            <p class="text-xs opacity-75">Descarga un archivo JSON cifrado con todas las configuraciones del sistema (tenants, usuarios, roles, IA, OIDC, infraestructura, SMTP y proxy).</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Contraseña del Backup</label>
+                                    <input type="password" id="bkp-export-password" placeholder="Contraseña para cifrar el archivo" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                                <div class="flex items-end">
+                                    <button id="btn-export-bkp" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-download mr-1"></i> Exportar Backup</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border rounded-xl p-4 space-y-4">
+                            <h3 class="text-sm font-bold uppercase tracking-wider dynamic-text-accent flex items-center space-x-2"><i class="fa-solid fa-upload"></i><span>Importar Backup</span></h3>
+                            <p class="text-xs opacity-75">Restaura las configuraciones desde un archivo de backup. Los registros existentes que no están en el archivo no se borran (upsert).</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Archivo de Backup</label>
+                                    <input type="file" id="bkp-import-file" accept=".json,application/json" class="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold dynamic-accent cursor-pointer">
+                                </div>
+                                <div>
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Contraseña del Backup</label>
+                                    <input type="password" id="bkp-import-password" placeholder="Contraseña del archivo" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                            </div>
+                            <div class="flex justify-end">
+                                <button id="btn-import-bkp" class="bg-amber-600/80 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-upload mr-1"></i> Importar Backup</button>
+                            </div>
+                            <div id="bkp-import-progress" class="hidden space-y-2 pt-2">
+                                <div class="flex justify-between text-xs opacity-75">
+                                    <span id="bkp-import-progress-phase">Reconciliando infraestructura…</span>
+                                    <span id="bkp-import-progress-pct">0%</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                                    <div id="bkp-import-progress-bar" class="bg-amber-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                                <ol id="bkp-import-steps" class="hidden max-h-40 overflow-y-auto space-y-1 text-[11px] leading-tight opacity-90"></ol>
+                                <p id="bkp-import-progress-error" class="hidden text-xs text-red-400"></p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="admin-view-infra" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-server dynamic-text-accent"></i><span>Infraestructura y Nodos</span></h2>
+                            <div class="space-x-2">
+                                <button id="btn-refresh-infra" class="dynamic-card border text-xs px-3 py-2 rounded-lg transition hover:opacity-80"><i class="fa-solid fa-rotate-right mr-1"></i> Actualizar</button>
+                            </div>
+                        </div>
+                        <div id="infra-nodes-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <p class="text-xs opacity-75">Cargando servidores...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="admin-view-sso" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-key dynamic-text-accent"></i><span>Configuración SSO (OIDC)</span></h2>
+                            <button id="btn-save-sso" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-save mr-1"></i> Guardar Cambios</button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Modo de autenticación</label>
+                                <select id="sso-auth-mode" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                    <option value="local">Solo local</option>
+                                    <option value="hybrid">Híbrido (local + OIDC)</option>
+                                    <option value="oidc_only">Solo OIDC</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Proveedor / Issuer URL</label>
+                                <input type="text" id="sso-issuer" placeholder="https://auth.empresa.com/realms/master" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Client ID</label>
+                                <input type="text" id="sso-client-id" placeholder="anomalia-platform" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Client Secret</label>
+                                <input type="password" id="sso-client-secret" placeholder="••••••••••••••••" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Redirect URI (web)</label>
+                                <input type="text" id="sso-redirect-uri" value="https://anomalia.local/api/v1/oidc/callback" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Scopes</label>
+                                <input type="text" id="sso-scopes" value="openid profile email" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Auth Method</label>
+                                <select id="sso-client-auth-method" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                    <option value="client_secret_basic">client_secret_basic</option>
+                                    <option value="client_secret_post">client_secret_post</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Dominios permitidos (CSV, opcional)</label>
+                                <input type="text" id="sso-allowed-domains" placeholder="empresa.com, ejemplo.com" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-2 text-xs">
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" id="sso-enabled" class="rounded dynamic-input">
+                                <label class="uppercase opacity-75 font-bold">Habilitar Autenticación SSO por OIDC</label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" id="sso-use-discovery" checked class="rounded dynamic-input">
+                                <label class="uppercase opacity-75 font-bold">Usar OIDC Discovery (.well-known)</label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" id="sso-pkce-enabled" checked class="rounded dynamic-input">
+                                <label class="uppercase opacity-75 font-bold">Habilitar PKCE</label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" id="sso-auto-provision" checked class="rounded dynamic-input">
+                                <label class="uppercase opacity-75 font-bold">Auto-crear usuarios desde OIDC</label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="checkbox" id="sso-require-email-verified" checked class="rounded dynamic-input">
+                                <label class="uppercase opacity-75 font-bold">Exigir email verificado en el IdP</label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="admin-view-ai" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-brain dynamic-text-accent"></i><span>Configuración de Proveedor IA</span></h2>
+                            <div class="flex items-center space-x-2">
+                                <button id="btn-test-ai" class="dynamic-card border text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-flask mr-1"></i> Probar Conexión</button>
+                                <button id="btn-save-ai" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-save mr-1"></i> Guardar Configuración</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Proveedor de IA</label>
+                                <select id="ai-provider-select" class="w-full dynamic-input border rounded-xl px-3 py-2 cursor-pointer">
+                                    <optgroup label="Free (OpenCode Zen)">
+                                        <option value="space-bunny-free">Space Bunny Free</option>
+                                    </optgroup>
+                                    <optgroup label="Local">
+                                        <option value="anomalia_ollama">anomalia_ollama (Local)</option>
+                                    </optgroup>
+                                    <optgroup label="API Key">
+                                        <option value="gemini">Gemini (Google)</option>
+                                    </optgroup>
+                                </select>
+                                <p id="ai-provider-status" class="text-xs mt-1 opacity-75"></p>
+                            </div>
+                            <div id="ai-zen-key-field" class="hidden">
+                                <label class="block text-xs uppercase opacity-75 mb-1">API Key Zen (OpenCode)</label>
+                                <input type="password" id="ai-zen-api-key" placeholder="Se guarda en la base de datos" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                <p class="text-xs mt-1 opacity-75">Es la misma para todos los modelos Free: se pide una sola vez.</p>
+                            </div>
+                            <div id="ai-gemini-key-field" class="hidden">
+                                <label class="block text-xs uppercase opacity-75 mb-1">API Key Gemini (Google)</label>
+                                <input type="password" id="ai-gemini-api-key" placeholder="Se guarda en la base de datos" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            </div>
+                            <div id="ai-gemini-model-field" class="hidden">
+                                <label class="block text-xs uppercase opacity-75 mb-1">Modelo Gemini</label>
+                                <select id="ai-gemini-model" class="w-full dynamic-input border rounded-xl px-3 py-2 cursor-pointer"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase opacity-75 mb-1">Idioma del análisis de alertas</label>
+                                <select id="ai-analysis-language" class="w-full dynamic-input border rounded-xl px-3 py-2 cursor-pointer"></select>
+                                <p class="text-xs mt-1 opacity-75">Idioma de las explicaciones que genera la IA para las alertas.</p>
+                            </div>
+                        </div>
+                        <div id="ai-test-result" class="hidden text-xs dynamic-card border rounded-xl p-3"></div>
+                    </div>
+                </section>
+
+                <!-- Alerts (conf) Admin View -->
+                <section id="admin-view-alerts" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <h2 class="text-xl font-bold flex items-center space-x-2 mb-2">
+                            <i class="fa-solid fa-gear dynamic-text-accent"></i>
+                            <span>Alerts (conf)</span>
+                        </h2>
+                        <p class="text-xs opacity-75 mb-4">Administración de vmalert por tenant y Alertmanager global (alerts_manager requerido)</p>
+                        <div id="admin-alerts-config-list" class="space-y-3"></div>
+                    </div>
+                </section>
+
+                <section id="admin-view-audit" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-clock-rotate-left dynamic-text-accent"></i><span>Registros de Auditoría</span></h2>
+                        </div>
+                        <p class="text-xs opacity-75 mb-6">Consulta de los registros de eventos del tenant de auditoría en VictoriaLogs.</p>
+                        <div id="audit-logs-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <p class="text-xs opacity-75">Cargando consolas...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="admin-view-approvals" class="admin-tab-view hidden space-y-6">
+                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-clipboard-check dynamic-text-accent"></i><span>Aprobaciones</span></h2>
+                            <button id="btn-refresh-approvals" class="dynamic-card border text-xs px-3 py-2 rounded-lg transition hover:opacity-80"><i class="fa-solid fa-rotate-right mr-1"></i> Actualizar</button>
+                        </div>
+                        <p class="text-xs opacity-75 mb-6">Solicitudes de roles y tenants pendientes de resolución.</p>
+                        <div id="admin-approvals-container" class="space-y-3">
+                            <p class="text-xs opacity-75">Cargando solicitudes...</p>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+        </div>
+
+        </main>
+
+        <!-- AI Assistant Floating Panel with Minimize/Maximize -->
+        <div id="ai-assistant-panel" class="fixed bottom-6 right-6 z-50 hidden">
+            <div id="ai-assistant-card" class="dynamic-card border rounded-2xl shadow-2xl w-[380px] h-[480px] flex flex-col overflow-hidden transition-all duration-200">
+                <div class="flex justify-between items-center p-3 border-b dynamic-border bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-t-2xl">
+                    <h4 class="font-bold text-sm flex items-center space-x-2">
+                        <i class="fa-solid fa-robot dynamic-text-accent"></i>
+                        <span id="ai-assistant-context">Asistente IA</span>
+                    </h4>
+                    <div class="flex items-center space-x-1">
+                        <button id="ai-assistant-context-btn" class="text-xs opacity-60 hover:opacity-100 px-2 py-1 rounded-lg transition" title="Cambiar contexto">
+                            <i class="fa-solid fa-globe"></i>
+                        </button>
+                        <button id="ai-assistant-minimize" class="text-xs opacity-60 hover:opacity-100 px-2 py-1 rounded-lg transition" title="Minimizar / Restaurar">
+                            <i class="fa-solid fa-window-minimize"></i>
+                        </button>
+                        <button id="ai-assistant-maximize" class="text-xs opacity-60 hover:opacity-100 px-2 py-1 rounded-lg transition" title="Maximizar / Pantalla completa">
+                            <i class="fa-solid fa-expand"></i>
+                        </button>
+                        <button id="ai-assistant-close" class="text-xs opacity-50 hover:opacity-100 px-2 py-1" title="Cerrar">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="ai-assistant-body" class="flex-1 flex flex-col overflow-hidden">
+                    <div id="ai-assistant-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs"></div>
+                    <div class="p-3 border-t dynamic-border">
+                        <div class="flex gap-2">
+                            <input type="text" id="ai-assistant-input" placeholder="Pregunta sobre el contexto actual o stack..." 
+                                    class="flex-1 dynamic-input border rounded-xl px-3 py-2 text-xs">
+                            <button id="ai-assistant-send" class="dynamic-accent px-3 py-2 rounded-xl text-xs font-semibold">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <p id="ai-assistant-hint" class="text-[10px] opacity-60 mt-1 text-center"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GitBook Documentation Modal (Updated URL) -->
+        <div id="gitbook-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+            <div class="dynamic-card border rounded-2xl w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col overflow-hidden">
+                <div class="flex justify-between items-center p-4 border-b dynamic-border bg-gradient-to-r from-primary/10 to-purple-500/10">
+                    <h3 class="font-bold text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-book dynamic-text-accent"></i>
+                        <span>Documentación Oficial (GitBook)</span>
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <a href="https://anomalia.gitbook.io/anomalia-docs" target="_blank" class="text-xs px-3 py-1.5 rounded-xl dynamic-card border flex items-center space-x-1 hover:opacity-80 transition" title="Abrir en pestaña nueva">
+                            <i class="fa-solid fa-external-link-alt"></i>
+                            <span>Abrir externa</span>
+                        </a>
+                        <button id="gitbook-modal-close" class="text-sm opacity-75 hover:opacity-100 p-1.5 rounded-lg transition" title="Cerrar">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 relative bg-white dark:bg-zinc-900">
+                    <iframe id="gitbook-iframe" src="https://anomalia.gitbook.io/anomalia-docs" class="w-full h-full border-0" title="Documentación GitBook"></iframe>
+                </div>
+            </div>
+        </div>
+
+        </div>
+
+        <!-- Floating Buttons Removed (Now located in Top Header Bar) -->
+    </div>
+
+    <!-- MODAL DE USUARIO CON CHECKBOXES -->
+    <div id="modal-user" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 id="modal-user-title" class="text-lg font-bold">Crear / Editar Usuario</h3>
+                <button data-modal="modal-user" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="user-id">
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Email</label>
+                    <input type="email" id="user-input-username" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Contraseña</label>
+                    <input type="password" id="user-input-password" placeholder="Dejar en blanco para mantener actual" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Confirmar Contraseña</label>
+                    <input type="password" id="user-input-password-confirm" placeholder="Repita la contraseña" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Roles Asignados</label>
+                    <div id="user-roles-checkboxes" class="max-h-36 overflow-y-auto dynamic-input border rounded-xl p-2 space-y-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Tenants Asignados</label>
+                    <div id="user-tenants-checkboxes" class="max-h-36 overflow-y-auto dynamic-input border rounded-xl p-2 space-y-1"></div>
+                </div>
+                <div class="flex items-center space-x-2 pt-1">
+                    <input type="checkbox" id="user-input-active" class="rounded dynamic-input" checked>
+                    <label class="text-xs uppercase opacity-75 font-bold">Usuario Activo</label>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                <button data-modal="modal-user" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
+                <button id="btn-save-user" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE TENANT -->
+    <div id="modal-tenant" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 id="modal-tenant-title" class="text-lg font-bold">Crear / Editar Tenant</h3>
+                <button data-modal="modal-tenant" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="tenant-id">
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Nombre del Tenant</label>
+                    <input type="text" id="tenant-input-name" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Tipo</label>
+                        <select id="tenant-input-type" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            <option value="metrics">Metrics</option>
+                            <option value="logs">Logs</option>
+                            <option value="traces">Traces</option>
+                            <option value="profiles">Profiles</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Entorno</label>
+                        <input type="text" id="tenant-input-env" class="w-full dynamic-input border rounded-xl px-3 py-2" value="default">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Modo placement vmalert</label>
+                        <select id="tenant-input-placement" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            <option value="manual">Manual (elegir nodo)</option>
+                            <option value="auto">Automático (menor carga)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Nodo vmalert</label>
+                        <select id="tenant-input-vmalert-node" class="w-full dynamic-input border rounded-xl px-3 py-2" disabled>
+                            <option value="">Cargando nodos...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Modo placement vmauth</label>
+                        <select id="tenant-input-vmauth-placement" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                            <option value="manual">Manual (elegir nodo)</option>
+                            <option value="auto">Automático (menor carga)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Nodo vmauth</label>
+                        <select id="tenant-input-vmauth-node" class="w-full dynamic-input border rounded-xl px-3 py-2" disabled>
+                            <option value="">Cargando nodos...</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-xs opacity-60">
+                    Account ID, Project ID, puertos y <code>X-Scope-OrgID</code> se asignan
+                    automáticamente en el alta. El tenant de <code>profiles</code> no usa
+                    vmalert (solo vmauth por org id).
+                </p>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Descripción</label>
+                    <textarea id="tenant-input-desc" class="w-full dynamic-input border rounded-xl px-3 py-2" rows="2"></textarea>
+                </div>
+                <div id="tenant-progress" class="hidden space-y-2 pt-2">
+                    <div class="flex justify-between text-xs opacity-75">
+                        <span id="tenant-progress-phase">Iniciando...</span>
+                        <span id="tenant-progress-pct">0%</span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-black/20 overflow-hidden">
+                        <div id="tenant-progress-bar" class="h-full dynamic-accent transition-all" style="width:0%"></div>
+                    </div>
+                    <p id="tenant-progress-error" class="hidden text-xs text-red-400"></p>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                <button data-modal="modal-tenant" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
+                <button id="btn-save-tenant" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE HARD-DELETE DE TENANT EN 2 PASOS (specs/011 §3) -->
+    <div id="modal-tenant-delete" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 class="text-lg font-bold text-red-400">Hard-delete de tenant</h3>
+                <button data-modal="modal-tenant-delete" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <input type="hidden" id="tenant-delete-id">
+            <input type="hidden" id="tenant-delete-challenge">
+            <div class="dynamic-card border rounded-xl p-3 text-xs">
+                <p><span class="opacity-75">Tenant:</span> <strong id="tenant-delete-name">-</strong></p>
+                <p><span class="opacity-75">Slug a escribir:</span> <code id="tenant-delete-slug" class="font-mono dynamic-text-accent">-</code></p>
+            </div>
+
+            <!-- Paso 1 -->
+            <div id="tenant-delete-step1" class="space-y-3">
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Motivo de la eliminación (opcional)</label>
+                    <input type="text" id="tenant-delete-reason" class="w-full dynamic-input border rounded-xl px-3 py-2"
+                           placeholder="Ej:tenant obsoleto">
+                </div>
+                <p class="text-xs opacity-75">
+                    El paso 1 pide un <code>challenge_id</code> de un solo uso, válido 10 minutos.
+                    No se borra nada todavía.
+                </p>
+                <div class="flex justify-end">
+                    <button id="btn-tenant-delete-step1" class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-xl text-xs font-semibold">
+                        Paso 1 · Generar challenge
+                    </button>
+                </div>
+            </div>
+
+            <!-- Paso 2 -->
+            <div id="tenant-delete-step2" class="space-y-3 hidden">
+                <div class="dynamic-card border rounded-xl p-3 text-xs font-mono break-all">
+                    challenge_id: <span id="tenant-delete-challenge-label">-</span>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Escribe el slug exacto para confirmar</label>
+                    <input type="text" id="tenant-delete-confirm" class="w-full dynamic-input border rounded-xl px-3 py-2 font-mono"
+                           autocomplete="off" placeholder="slug exacto del tenant">
+                </div>
+                <p class="text-xs opacity-75">
+                    Se destruyen la instancia vmalert, sus reglas y el mapeo de puertos.
+                    La operación es asíncrona: devuelve un <code>job_id</code> y se sigue por polling.
+                </p>
+                <div class="flex justify-end space-x-2">
+                    <button data-modal="modal-tenant-delete" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
+                    <button id="btn-tenant-delete-step2" class="bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-semibold">
+                        Paso 2 · Eliminar definitivamente
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progreso del borrado secuencial (specs/011 §4.11) -->
+            <div id="tenant-delete-progress" class="hidden space-y-2 pt-2">
+                <div class="flex justify-between text-xs opacity-75">
+                    <span id="tenant-delete-progress-phase">Iniciando...</span>
+                    <span id="tenant-delete-progress-pct">0%</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-black/20 overflow-hidden">
+                    <div id="tenant-delete-progress-bar" class="h-full bg-red-500 transition-all" style="width:0%"></div>
+                </div>
+                <p id="tenant-delete-progress-error" class="hidden text-xs text-red-400"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDITOR DE REGLAS vmalert POR TENANT (specs/011 F5) -->
+    <div id="modal-vmalert-rules" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-4xl shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 class="text-lg font-bold">Reglas vmalert · <span id="vmalert-rules-tenant" class="font-mono">-</span></h3>
+                <button data-modal="modal-vmalert-rules" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="vmalert-rules-tenant-id">
+            <p class="text-xs opacity-75">
+                Archivo del tenant: <code id="vmalert-rules-path" class="font-mono">-</code>
+            </p>
+            <div id="vmalert-rules-status" class="text-xs opacity-75">Cargando reglas...</div>
+            <div id="vmalert-rules-internal-badge" class="hidden">
+                <span class="dynamic-accent px-2 py-1 rounded-xl text-xs font-semibold">Control interno · reglas canónicas e inmutables</span>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4 h-[60vh]">
+                <textarea id="vmalert-rules-yaml" rows="18" spellcheck="false"
+                          class="w-full md:w-2/3 dynamic-input border rounded-xl px-3 py-2 font-mono text-xs"
+                          placeholder="groups:&#10;  - name: ejemplo&#10;    rules:&#10;      - alert: Ejemplo&#10;        expr: up == 0&#10;        for: 5m"></textarea>
+                <!-- AI Chat Panel for vmalert rules -->
+                <div class="w-full md:w-1/3 dynamic-card border rounded-xl flex flex-col h-full">
+                    <div class="flex justify-between items-center p-3 border-b dynamic-border">
+                        <h4 class="font-bold text-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-robot dynamic-text-accent"></i>
+                            <span>Asistente vmalert</span>
+                        </h4>
+                        <button id="btn-ai-chat-close" class="text-xs opacity-50 hover:opacity-100" title="Cerrar chat">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs" style="min-height: 0;"></div>
+                    <div class="p-3 border-t dynamic-border">
+                        <div class="flex gap-2">
+                            <input type="text" id="ai-chat-input" placeholder="Pregunta sobre reglas vmalert/PromQL..." 
+                                   class="flex-1 dynamic-input border rounded-xl px-3 py-2 text-xs">
+                            <button id="btn-ai-chat-send" class="dynamic-accent px-3 py-2 rounded-xl text-xs font-semibold">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <p class="text-[10px] opacity-60 mt-1 text-center">Solo responde sobre reglas vmalert/PromQL</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                <button data-modal="modal-vmalert-rules" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cerrar</button>
+                <button id="btn-vmalert-rules-save" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar reglas</button>
+                <button id="btn-vmalert-rules-reload" class="dynamic-card border px-4 py-2 rounded-xl text-xs font-semibold">
+                    Guardar y recargar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DESTINATARIOS DE ALERTAS POR TENANT (specs/018) -->
+    <div id="modal-alert-recipients" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-2xl shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 class="text-lg font-bold">Destinatarios de alertas · <span id="alert-recipients-tenant" class="font-mono">-</span></h3>
+                <button data-modal="modal-alert-recipients" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="alert-recipients-tenant-id">
+            <p class="text-xs opacity-75">Correos que reciben el análisis IA de las alertas de este tenant.</p>
+            <div class="flex flex-col md:flex-row gap-2 text-sm">
+                <input type="email" id="alert-recipient-email" placeholder="correo@dominio.com" class="flex-1 dynamic-input border rounded-xl px-3 py-2">
+                <input type="text" id="alert-recipient-label" placeholder="Etiqueta (opcional)" class="md:w-48 dynamic-input border rounded-xl px-3 py-2">
+                <button id="btn-add-alert-recipient" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap">
+                    <i class="fa-solid fa-plus mr-1"></i> Añadir
+                </button>
+            </div>
+            <div id="alert-recipients-list" class="space-y-2 max-h-[50vh] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ROL CON CHECKBOXES -->
+    <div id="modal-role" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 id="modal-role-title" class="text-lg font-bold">Crear / Editar Rol</h3>
+                <button data-modal="modal-role" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="role-id">
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Nombre del Rol</label>
+                    <input type="text" id="role-input-name" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Descripción</label>
+                    <input type="text" id="role-input-desc" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Tenants Asociados</label>
+                    <div id="role-tenants-checkboxes" class="max-h-32 overflow-y-auto dynamic-input border rounded-xl p-2 space-y-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Perfiles Asociados</label>
+                    <div id="role-profiles-checkboxes" class="max-h-32 overflow-y-auto dynamic-input border rounded-xl p-2 space-y-1"></div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                <button data-modal="modal-role" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
+                <button id="btn-save-role" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE PERFIL -->
+    <div id="modal-profile" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 id="modal-profile-title" class="text-lg font-bold">Crear / Editar Perfil</h3>
+                <button data-modal="modal-profile" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="profile-id">
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Nombre del Perfil</label>
+                    <input type="text" id="profile-input-name" class="w-full dynamic-input border rounded-xl px-3 py-2" placeholder="ej: Users Manager">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Código Técnico / Slug</label>
+                    <input type="text" id="profile-input-code" class="w-full dynamic-input border rounded-xl px-3 py-2" placeholder="ej: users_manager">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Descripción</label>
+                    <textarea id="profile-input-desc" class="w-full dynamic-input border rounded-xl px-3 py-2" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                <button data-modal="modal-profile" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
+                <button id="btn-save-profile" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE INFRAESTRUCTURA -->
+    <div id="modal-infra" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 class="text-lg font-bold">Editar Nodo de Infraestructura</h3>
+                <button data-modal="modal-infra" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="infra-id">
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Host del Nodo</label>
+                    <input type="text" id="infra-input-name" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Dirección IP</label>
+                    <input type="text" id="infra-input-ip" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Service IP</label>
+                    <input type="text" id="infra-input-service-ip" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Tipo</label>
+                    <select id="infra-input-type" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                        <option value="">Seleccionar...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                <button data-modal="modal-infra" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
+                <button id="btn-save-infra" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE PERFIL GENERAL -->
+    <div id="profile-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-start justify-center z-50 p-4 overflow-y-auto">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] my-auto">
+            <div class="flex justify-between items-center border-b pb-4 dynamic-border">
+                <h3 class="text-lg font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-user-gear dynamic-text-accent"></i>
+                    <span>Configuración de Perfil</span>
+                </h3>
+                <button data-modal="profile-modal" class="close-modal-btn opacity-75 hover:opacity-100 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-sm overflow-y-auto flex-1 py-4 pr-1">
+                <div class="flex items-center space-x-4">
+                    <img id="modal-avatar-preview" src="/media/default.png" alt="Avatar Preview" class="w-16 h-16 rounded-full object-cover border-2 dynamic-border shadow-md">
+                    <div class="flex-1">
+                        <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Cambiar Foto de Perfil</label>
+                        <input type="file" id="input-user-avatar-file" accept="image/*" class="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold dynamic-accent cursor-pointer">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Email</label>
+                    <p id="modal-username" class="font-mono font-semibold px-3 py-2 dynamic-input border rounded-xl">--</p>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1">Roles y Perfiles del Sistema</label>
+                    <p id="modal-user-inherited-roles" class="text-xs px-3 py-2 dynamic-input border rounded-xl opacity-90">--</p>
+                </div>
+
+                <div>
+                    <button id="btn-open-access-request" class="w-full dynamic-card border px-3 py-2 rounded-xl text-xs font-medium hover:opacity-80 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-paper-plane dynamic-text-accent"></i><span>Solicitar acceso a roles / tenants</span>
+                    </button>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Tema Visual</label>
+                    <select id="user-theme-preference" class="w-full dynamic-input border rounded-xl px-3 py-2 cursor-pointer">
+                        <option value="theme-enterprise-blue">Enterprise Blue</option>
+                        <option value="theme-cyberpunk">Cyberpunk</option>
+                        <option value="theme-sunset">Sunset</option>
+                        <option value="theme-boca-juniors">Boca Juniors</option>
+                        <option value="theme-light-blue">Light Blue</option>
+                        <option value="theme-light-emerald">Light Emerald</option>
+                        <option value="theme-blanco-clasico">Blanco Clásico</option>
+                        <option value="theme-gris">Gris (Moderno)</option>
+                    </select>
+                </div>
+
+                <div class="border-t pt-4 dynamic-border space-y-3">
+                    <h4 class="font-bold text-xs uppercase tracking-wider dynamic-text-accent">Seguridad: Cambiar Contraseña</h4>
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Nueva Contraseña</label>
+                        <input type="password" id="input-new-password" placeholder="Dejar en blanco para no cambiar" class="w-full dynamic-input border rounded-xl px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase opacity-75 mb-1">Repetir Nueva Contraseña</label>
+                        <input type="password" id="input-confirm-password" placeholder="Repita la nueva contraseña" class="w-full dynamic-input border rounded-xl px-3 py-2 text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4 border-t dynamic-border shrink-0">
+                <button data-modal="profile-modal" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border hover:opacity-80 transition">Cancelar</button>
+                <button id="btn-save-profile-changes" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold transition shadow-md">Guardar Cambios</button>
+                <button id="btn-logout" class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-red-500/30 transition">Cerrar Sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-access-request" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b pb-4 dynamic-border">
+                <h3 class="text-lg font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-paper-plane dynamic-text-accent"></i>
+                    <span>Solicitar acceso</span>
+                </h3>
+                <button data-modal="modal-access-request" class="close-modal-btn opacity-75 hover:opacity-100 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="space-y-4 text-sm overflow-y-auto flex-1 py-4 pr-1">
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Roles solicitados</label>
+                    <div id="access-roles-checkboxes" class="max-h-40 overflow-y-auto dynamic-input border rounded-xl p-2 space-y-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Tenants solicitados</label>
+                    <div id="access-tenants-checkboxes" class="max-h-40 overflow-y-auto dynamic-input border rounded-xl p-2 space-y-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase opacity-75 mb-1 font-semibold">Motivo</label>
+                    <textarea id="access-request-reason" class="w-full dynamic-input border rounded-xl px-3 py-2" rows="3" placeholder="Describe por qué necesitas este acceso"></textarea>
+                </div>
+                <p id="access-request-error" class="text-xs text-red-400 hidden"></p>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4 border-t dynamic-border shrink-0">
+                <button data-modal="modal-access-request" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border hover:opacity-80 transition">Cancelar</button>
+                <button id="btn-submit-access-request" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold transition shadow-md">Enviar solicitud</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/qrcode.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

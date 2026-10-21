@@ -1,0 +1,328 @@
+{
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "anomalia-metrics"
+  },
+  "spec": {
+    "display": {
+      "name": "Anomalia - M\u00e9tricas",
+      "description": "Telemetria propia del backend Anomalia: metricas expuestas en /metrics, trazas enviadas por OTLP a VictoriaTraces y perfilado continuo de CPU con Pyroscope."
+    },
+    "duration": "1h",
+    "variables": [],
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Anomalia",
+            "collapse": {
+              "open": true
+            }
+          },
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 8,
+              "height": 4,
+              "content": {
+                "$ref": "#/spec/panels/0_0"
+              }
+            },
+            {
+              "x": 8,
+              "y": 0,
+              "width": 8,
+              "height": 4,
+              "content": {
+                "$ref": "#/spec/panels/0_1"
+              }
+            },
+            {
+              "x": 16,
+              "y": 0,
+              "width": 8,
+              "height": 4,
+              "content": {
+                "$ref": "#/spec/panels/0_2"
+              }
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "width": 24,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/1_0"
+              }
+            },
+            {
+              "x": 0,
+              "y": 12,
+              "width": 24,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/2_0"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "panels": {
+      "0_0": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "CPU %"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last-number",
+              "colorMode": "value",
+              "format": {
+                "unit": "percent"
+              },
+              "sparkline": {},
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "#73bf69",
+                    "value": 0
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 70
+                  },
+                  {
+                    "color": "#E24D42",
+                    "value": 90
+                  }
+                ]
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PrometheusDatasource",
+                    "query": "anomalia_system_cpu_usage_percent"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "0_1": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "RAM %"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last-number",
+              "colorMode": "value",
+              "format": {
+                "unit": "percent"
+              },
+              "sparkline": {},
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "#73bf69",
+                    "value": 0
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 80
+                  },
+                  {
+                    "color": "#E24D42",
+                    "value": 92
+                  }
+                ]
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PrometheusDatasource",
+                    "query": "anomalia_system_ram_usage_percent"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "0_2": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Health"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last-number",
+              "colorMode": "value",
+              "format": {
+                "unit": "decimal"
+              },
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "#E24D42",
+                    "value": 0
+                  },
+                  {
+                    "color": "#73bf69",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PrometheusDatasource",
+                    "query": "anomalia_health_status"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "1_0": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "CPU / RAM del backend"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "mode": "list",
+                "position": "bottom",
+                "values": [
+                  "last-number"
+                ]
+              },
+              "visual": {
+                "display": "line",
+                "connectNulls": false,
+                "areaOpacity": 0.1,
+                "lineWidth": 1,
+                "showPoints": "auto"
+              },
+              "yAxis": {
+                "format": {
+                  "unit": "percent"
+                },
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PrometheusDatasource",
+                    "query": "anomalia_system_cpu_usage_percent",
+                    "seriesNameFormat": "CPU"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PrometheusDatasource",
+                    "query": "anomalia_system_ram_usage_percent",
+                    "seriesNameFormat": "RAM"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "2_0": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Scrape health (up by job)"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "mode": "list",
+                "position": "bottom",
+                "values": [
+                  "last-number"
+                ]
+              },
+              "visual": {
+                "display": "line",
+                "connectNulls": false,
+                "areaOpacity": 0.1,
+                "lineWidth": 1,
+                "showPoints": "auto"
+              },
+              "yAxis": {
+                "format": {
+                  "unit": "decimal"
+                },
+                "min": 0,
+                "max": 1
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PrometheusDatasource",
+                    "query": "sum by (job) (up)",
+                    "seriesNameFormat": "{{ job }}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

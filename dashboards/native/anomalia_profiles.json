@@ -1,0 +1,116 @@
+{
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "anomalia-profiles"
+  },
+  "spec": {
+    "display": {
+      "name": "Anomalia - Perfilado continuo"
+    },
+    "duration": "1h",
+    "variables": [],
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Anomalia - Perfilado continuo",
+            "collapse": {
+              "open": true
+            }
+          },
+          "items": [
+            {
+              "x": 0,
+              "y": 20,
+              "width": 12,
+              "height": 16,
+              "content": {
+                "$ref": "#/spec/panels/3_0"
+              }
+            },
+            {
+              "x": 12,
+              "y": 20,
+              "width": 12,
+              "height": 16,
+              "content": {
+                "$ref": "#/spec/panels/3_1"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "panels": {
+      "3_0": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Perfil de CPU (flamegraph)"
+          },
+          "plugin": {
+            "kind": "FlameChart",
+            "spec": {
+              "palette": "value",
+              "showFlameGraph": true,
+              "showSeries": true,
+              "showSettings": true,
+              "showTable": true,
+              "traceHeight": 16
+            }
+          },
+          "queries": [
+            {
+              "kind": "ProfileQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PyroscopeProfileQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PyroscopeDatasource",
+                    "service": "anomalia_system",
+                    "profileType": "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "3_1": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Perfil de memoria (flamegraph)"
+          },
+          "plugin": {
+            "kind": "FlameChart",
+            "spec": {
+              "palette": "value",
+              "showFlameGraph": true,
+              "showSeries": true,
+              "showSettings": true,
+              "showTable": true,
+              "traceHeight": 16
+            }
+          },
+          "queries": [
+            {
+              "kind": "ProfileQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PyroscopeProfileQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "PyroscopeDatasource",
+                    "service": "anomalia_system",
+                    "profileType": "memory:alloc_space:bytes:space:bytes"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

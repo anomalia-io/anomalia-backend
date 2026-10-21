@@ -1,0 +1,18 @@
+.theme-enterprise-blue { --bg-main: #0f172a; --bg-card: #1e293b; --bg-card-hover: #334155; --text-main: #f1f5f9; --text-muted: #94a3b8; --border-color: #334155; --accent: #6366f1; --accent-hover: #4f46e5; }
+.theme-cyberpunk { --bg-main: #0b0f19; --bg-card: #131c2e; --bg-card-hover: #1e293b; --text-main: #f0fdf4; --text-muted: #94a3b8; --border-color: #1f293d; --accent: #22c55e; --accent-hover: #16a34a; }
+.theme-sunset { --bg-main: #18181b; --bg-card: #27272a; --bg-card-hover: #3f3f46; --text-main: #fafafa; --text-muted: #a1a1aa; --border-color: #3f3f46; --accent: #f59e0b; --accent-hover: #d97706; }
+.theme-boca { --bg-main: #0c1c3c; --bg-card: #142850; --bg-card-hover: #1b3668; --text-main: #ffffff; --text-muted: #facc15; --border-color: #facc15; --accent: #facc15; --accent-hover: #eab308; }
+.theme-light-blue { --bg-main: #f0f4f8; --bg-card: #ffffff; --bg-card-hover: #e2e8f0; --text-main: #1e293b; --text-muted: #64748b; --border-color: #cbd5e1; --accent: #0ea5e9; --accent-hover: #0284c7; }
+.theme-light-emerald { --bg-main: #f4f5f7; --bg-card: #ffffff; --bg-card-hover: #e9ecef; --text-main: #212529; --text-muted: #6c757d; --border-color: #dee2e6; --accent: #10b981; --accent-hover: #059669; }
+.theme-light { --bg-main: #f8fafc; --bg-card: #ffffff; --bg-card-hover: #f1f5f9; --text-main: #0f172a; --text-muted: #64748b; --border-color: #cbd5e1; --accent: #2563eb; --accent-hover: #1d4ed8; }
+.theme-blanco-clasico { --bg-main: #ffffff; --bg-card: #f7f7f7; --bg-card-hover: #eeeeee; --text-main: #222222; --text-muted: #666666; --border-color: #cccccc; --accent: #333333; --accent-hover: #111111; }
+.theme-gris { --bg-main: #374151; --bg-card: #4b5563; --bg-card-hover: #6b7280; --text-main: #f3f4f6; --text-muted: #d1d5db; --border-color: #6b7280; --accent: #9ca3af; --accent-hover: #d1d5db; }
+
+body { background-color: var(--bg-main); color: var(--text-main); }
+.dynamic-card { background-color: var(--bg-card); border-color: var(--border-color); }
+.dynamic-card:hover { background-color: var(--bg-card-hover); }
+.dynamic-accent { background-color: var(--accent); color: #ffffff; }
+.dynamic-accent:hover { background-color: var(--accent-hover); }
+.dynamic-text-accent { color: var(--accent); }
+.dynamic-border { border-color: var(--border-color); }
+.dynamic-input { background-color: var(--bg-main); color: var(--text-main); border-color: var(--border-color); }

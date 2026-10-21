@@ -1,0 +1,165 @@
+{
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "anomalia-traces"
+  },
+  "spec": {
+    "display": {
+      "name": "Anomalia - Trazas"
+    },
+    "duration": "1h",
+    "variables": [
+      {
+        "kind": "TextVariable",
+        "spec": {
+          "name": "trace_id",
+          "display": {
+            "name": "Traza (trace ID)",
+            "description": "ID de traza a inspeccionar. Pulsa el nombre de una fila de la tabla de trazas para rellenarlo."
+          },
+          "value": ""
+        }
+      },
+      {
+        "kind": "TextVariable",
+        "spec": {
+          "name": "trace_op",
+          "display": {
+            "name": "Operacion",
+            "description": "Filtra la tabla por operacion exacta (p.ej. GET /metrics). Vacio = sin filtro."
+          },
+          "value": ""
+        }
+      },
+      {
+        "kind": "TextVariable",
+        "spec": {
+          "name": "trace_tags",
+          "display": {
+            "name": "Tags",
+            "description": "Filtra por tags JSON del span (p.ej. {\"http.method\":\"GET\"}). Debe ser JSON valido. Vacio = sin filtro."
+          },
+          "value": ""
+        }
+      },
+      {
+        "kind": "TextVariable",
+        "spec": {
+          "name": "trace_min_dur",
+          "display": {
+            "name": "Duracion min.",
+            "description": "Duracion minima de la traza (p.ej. 100ms, 1s). Vacio = sin filtro."
+          },
+          "value": ""
+        }
+      },
+      {
+        "kind": "TextVariable",
+        "spec": {
+          "name": "trace_max_dur",
+          "display": {
+            "name": "Duracion max.",
+            "description": "Duracion maxima de la traza (p.ej. 500ms, 2s). Vacio = sin filtro."
+          },
+          "value": ""
+        }
+      }
+    ],
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Anomalia - Trazas",
+            "collapse": {
+              "open": true
+            }
+          },
+          "items": [
+            {
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/2_0"
+              }
+            },
+            {
+              "x": 12,
+              "y": 12,
+              "width": 12,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/2_1"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "panels": {
+      "2_0": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Trazas del backend (Jaeger)"
+          },
+          "plugin": {
+            "kind": "TraceTable",
+            "spec": {
+              "links": {
+                "trace": "?var-trace_id=${traceId}"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TraceQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "JaegerTraceQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "JaegerDatasource",
+                    "service": "anomalia_system",
+                    "operation": "$trace_op",
+                    "tags": "$trace_tags",
+                    "minDuration": "$trace_min_dur",
+                    "maxDuration": "$trace_max_dur"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "2_1": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Traza seleccionada (Gantt)"
+          },
+          "plugin": {
+            "kind": "TracingGanttChart",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "TraceQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "JaegerTraceQuery",
+                  "spec": {
+                    "xAnomaliaDatasource": "JaegerDatasource",
+                    "traceId": "$trace_id",
+                    "service": "anomalia_system"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

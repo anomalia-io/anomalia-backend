@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anomalía - OIDC</title>
+</head>
+<body class="bg-slate-900 text-slate-100 flex items-center justify-center min-h-screen">
+    <p id="msg" class="text-slate-300">Procesando inicio de sesión OIDC…</p>
+    <script>
+        (function () {
+            var p = new URLSearchParams(window.location.search);
+            var msg = document.getElementById('msg');
+            var token = p.get('token') || p.get('access_token');
+            var username = p.get('username');
+            var role = p.get('role');
+            var error = p.get('error') || p.get('error_description');
+
+            if (error) {
+                window.location.replace('/login?error=' + encodeURIComponent(error));
+                return;
+            }
+            if (token) {
+                try {
+                    localStorage.setItem('access_token', token);
+                    if (username) localStorage.setItem('username', username);
+                    if (role) localStorage.setItem('role', role);
+                } catch (e) { /* localStorage puede fallar en contextos restringidos */ }
+                window.location.replace('/');
+                return;
+            }
+            msg.textContent = 'No se recibió token OIDC.';
+            setTimeout(function () { window.location.replace('/login'); }, 2000);
+        })();
+    </script>
+</body>
+</html>

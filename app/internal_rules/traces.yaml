@@ -1,0 +1,19 @@
+groups:
+  - name: internal-traces-alerts
+    rules:
+      - alert: TracesStackDown
+        expr: up{job=~"vt-storage|vt-insert|vt-select"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Componente de trazas {{ $labels.job }} en {{ $labels.instance }} está caído"
+          description: "El stack de VictoriaTraces dejó de responder al scraping durante más de 1 minuto."
+      - alert: TracesComponentUptimeDown
+        expr: vm_app_uptime_seconds{job=~"vt-storage|vt-insert|vt-select"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Uptime a cero en {{ $labels.job }}"
+          description: "El proceso se reinició o dejó de reportar uptime."

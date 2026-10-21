@@ -1,0 +1,59 @@
+groups:
+  - name: internal-metrics-alerts
+    rules:
+      - alert: MetricsStackDown
+        expr: up{job=~"vm-storage|vm-insert|vm-select|vmagent"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Componente de métricas {{ $labels.job }} en {{ $labels.instance }} está caído"
+          description: "El stack de VictoriaMetrics dejó de responder al scraping durante más de 1 minuto."
+      - alert: MetricsComponentUptimeDown
+        expr: vm_app_uptime_seconds{job=~"vm-storage|vm-insert|vm-select|vmagent"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Uptime a cero en {{ $labels.job }}"
+          description: "El proceso se reinició o dejó de reportar uptime."
+      - alert: AnomaliaBackendDown
+        expr: up{job="anomalia-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend Anomalia caído"
+          description: "El backend de la plataforma no responde al scraping de métricas."
+      - alert: ParsesServiceDown
+        expr: up{job="parses-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio de dashboards (Parses) caído"
+          description: "Parses no responde al scraping de métricas."
+      - alert: PyroscopeDown
+        expr: up{job="pyroscope"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pyroscope caído"
+          description: "El servicio de profiling continuo no responde al scraping de métricas."
+      - alert: PyroscopeHeartbeatMissing
+        expr: absent(pyroscope_build_info)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pyroscope sin métricas internas"
+          description: "No se reciben métricas propias de Pyroscope."
+      - alert: VmalertTenantDown
+        expr: up{job=~"^vmalert-.*", tenant_id!=""} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "vmalert del tenant {{ $labels.tenant }} (id={{ $labels.tenant_id }}) caído"
+          description: "La instancia vmalert-{{ $labels.tenant }} en {{ $labels.instance }} no reporta métricas (up==0)."

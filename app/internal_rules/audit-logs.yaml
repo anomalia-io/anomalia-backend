@@ -1,0 +1,19 @@
+groups:
+  - name: internal-audit-logs-alerts
+    rules:
+      - alert: LogsStackDown
+        expr: up{job=~"vlogs-storage|vlogs-insert|vlogs-select"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Componente de logs {{ $labels.job }} en {{ $labels.instance }} está caído"
+          description: "El stack de VictoriaLogs dejó de responder al scraping durante más de 1 minuto."
+      - alert: LogsComponentUptimeDown
+        expr: vm_app_uptime_seconds{job=~"vlogs-storage|vlogs-insert|vlogs-select"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Uptime a cero en {{ $labels.job }}"
+          description: "El proceso se reinició o dejó de reportar uptime."

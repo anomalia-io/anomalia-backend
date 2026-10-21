@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage/
+htmlcov/
+
+# Entornos / secretos locales (nunca versionar)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.jks
+key.properties
+
+# Artefactos
+*.log
+*.sar
+*.prof
+
+# Caché de migración Grafana -> Perses (se regenera al provisionar)
+dashboards/migrated/
+
+# OS / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
