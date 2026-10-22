@@ -12,7 +12,8 @@
 
 - **Commits firmados** (GPG/SSH).
 - **No commits a `main` directo**.
-- **Specs primero (SSD):** si el cambio afecta comportamiento documentado, actualizá la spec en `anomalia-meta`; si es funcionalidad nueva, creá la spec antes.
+- **Specs primero:** si el cambio afecta comportamiento documentado, actualizá la documentación
+  en `docs/`; si es funcionalidad nueva, documentala antes o junto con el código.
 - **Sin secretos:** `gitleaks dir .` debe estar limpio; los secretos se referencean por variable de entorno.
 - Mensajes de commit claros y concisos.
 
