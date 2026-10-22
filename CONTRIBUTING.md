@@ -20,9 +20,6 @@
 ## Checks locales
 
 ```bash
-# según el repo (ver README.md)
 pytest -q
-flutter analyze && flutter test --dart-define=FLUTTER_TEST=true
-ansible-playbook -i inventory.ini deploy-infra.yml --syntax-check
 gitleaks dir .
 ```
