@@ -44,4 +44,5 @@ paths = [
   '''(^|/)gitleaks-baseline\.json$''',
   '''(^|/)node_modules/''',
   '''(^|/)\.venv/''',
+  '''(^|/)\.git/''',
 ]
