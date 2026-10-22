@@ -1,0 +1,47 @@
+title = "Anomalia - secret scanning"
+
+# Extiende el ruleset por defecto de gitleaks (proveedores, claves privadas,
+# generic-api-key, JWT, etc.). Las reglas custom de abajo se SUMAN a este set.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Reglas propias del proyecto
+#
+# gitleaks NO trae ninguna regla para Context7. Verificado empiricamente:
+# el ruleset por defecto reporta "no leaks found" sobre un archivo que
+# contiene una key `ctx7sk-...` real. Sin esta regla, el gate no habria
+# atrapado el incidente que motiva este archivo.
+# ---------------------------------------------------------------------------
+[[rules]]
+id = "anomalia-context7-api-key"
+description = "API key de Context7 hardcodeada; debe referenciarse como {env:CONTEXT7_API_KEY}"
+regex = '''ctx7sk-[A-Za-z0-9\-_]{20,}'''
+keywords = ["ctx7sk"]
+
+[[rules]]
+id = "anomalia-bearer-literal"
+description = "Bearer token hardcodeado en lugar de variable de entorno"
+regex = '''(?i)authorization["'\s:=]+bearer\s+[A-Za-z0-9\-_\.]{20,}'''
+keywords = ["bearer"]
+
+# ---------------------------------------------------------------------------
+# Allowlist
+#
+# Se allowlistean por PATH, nunca por valor. Un allowlist por valor dejaria
+# pasar cualquier otra credencial que coincidiera con el mismo string.
+#
+# Nota de cobertura: gitleaks detecta credenciales de alta entropia y de
+# proveedor conocido. NO detecta passwords debiles de diccionario como
+# `anomal_password`, `admin_password` o `change-me-secret` presentes en los
+# templates de ansible-infra. Ese gap es conocido y esta documentado en
+# .opencode/skills/anomalia-security-skill/SKILL.md; no se allowlistea nada
+# porque gitleaks ya los ignora de forma nativa.
+# ---------------------------------------------------------------------------
+[allowlist]
+description = "Excepciones deliberadas, acotadas por path"
+paths = [
+  '''(^|/)gitleaks-baseline\.json$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.venv/''',
+]
