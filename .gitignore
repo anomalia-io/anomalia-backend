@@ -28,6 +28,9 @@ key.properties
 # Caché de migración Grafana -> Perses (se regenera al provisionar)
 dashboards/migrated/
 
+# Config local de opencode (contiene rutas absolutas; no versionar)
+opencode.json
+
 # OS / editores
 .DS_Store
 Thumbs.db

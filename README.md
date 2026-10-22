@@ -54,8 +54,32 @@ docker build -t anomalia-backend .
 docker run -p 8000:8000 anomalia-backend
 ```
 
-El despliegue real lo orquesta el repo [`anomalia-infra`](../anomalia-infra) (Ansible), que
+## Pruebas de integración (SMTP y OIDC)
+
+Con el stack desplegado, `scripts/` incluye harness de prueba que no requieren infraestructura
+externa:
+
+- `scripts/smtp-test/run-test-smtp.sh` — receptor SMTP local (`aiosmtpd`); apunta el gateway a
+  él para ver "aterrizar" los correos de alertas. `--reset` restaura la config.
+- `scripts/smtp-test/etch-test.sh` — envío real por Ethereal (`smtp.ethereal.email:587`) para
+  validar internet + STARTTLS + login.
+- `scripts/oidc-test/run-test-idp.sh` — IdP OIDC mock (`--configure` lo registra en la BD) para
+  probar SSO autorization_code + PKCE. `--stop`/`--reset` limpian.
+
+Ver los comentarios de cabecera de cada script y las variables de entorno configurables.
+
+El despliegue real lo orquesta el repo [`anomalia-infra`](https://github.com/anomalia-io/anomalia-infra) (Ansible), que
 construye esta imagen en el host.
+
+## Documentación
+
+- [Arquitectura general](docs/architecture/overview.md) — componentes del sistema, multitenancy,
+  gateway HTTPS y proxy de consolas.
+- [Tenants internos](docs/architecture/internal-tenants.md) — tenants de control (`is_internal`)
+  y reglas canónicas inmutables.
+- [Referencia de API](docs/api-reference.md) — routers, RBAC, webhooks, chat IA.
+- [Pipeline AIOps y asistente IA](docs/aiops-and-chat.md) — proveedores de IA, restricciones por contexto.
+- [Procesamiento de alertas](docs/aiops/alert-processing.md) — ingesta desde Alertmanager hasta el enriquecido por IA.
 
 ## Licencia
 
