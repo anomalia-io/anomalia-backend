@@ -116,10 +116,20 @@ follow_logs() {
     "$engine" logs -f "$CONTAINER_NAME"
 }
 
+cleanup_anomalia_db() {
+    local engine="$1"
+    if container_running "$engine" "$PG_CONTAINER"; then
+        log "limpiando configuración OIDC en PostgreSQL..."
+        psql_exec "$engine" "DELETE FROM oidc_providers WHERE name='${PROVIDER_NAME}';"
+        psql_exec "$engine" "UPDATE system_settings SET oidc_enabled = false, auth_mode = 'local', default_oidc_provider_id = NULL WHERE id = 1;"
+    fi
+}
+
 reset_all() {
     local engine="$1"
     stop_container "$engine"
-    log "reset completado (contenedor eliminado)"
+    cleanup_anomalia_db "$engine"
+    log "reset completado (contenedor eliminado y BD de Anomalia restaurada)"
 }
 
 run_container() {
@@ -313,7 +323,7 @@ main() {
     done
 
     case "$action" in
-        stop) stop_container "$engine"; exit 0 ;;
+        stop) stop_container "$engine"; cleanup_anomalia_db "$engine"; exit 0 ;;
         reset) reset_all "$engine"; exit 0 ;;
         logs) follow_logs "$engine"; exit 0 ;;
         help)
