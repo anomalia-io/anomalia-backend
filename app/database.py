@@ -466,7 +466,7 @@ def _init_db_ddl(conn, cursor, hash_password_func):
 
     # spec 018: push móvil (FCM). La configuración vive solo en la BD, nunca en
     # el repositorio (constitución §4). Sin credenciales el envío es best-effort.
-    cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN DEFAULT FALSE")
+    cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN DEFAULT TRUE")
     cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS fcm_project_id VARCHAR(255) DEFAULT ''")
     cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS fcm_service_account_json TEXT DEFAULT ''")
 
