@@ -535,6 +535,49 @@ async saveTenantVmalertRules(tenantId, yamlText) {
         return await res.json();
     },
 
+    async getPushConfig() {
+        const token = this.getToken();
+        const res = await fetch('/api/v1/system/push', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            let detail = '';
+            try { detail = (await res.json()).detail || ''; } catch (_) { /* sin cuerpo */ }
+            throw new Error(detail || 'No se pudo obtener la configuración de push');
+        }
+        return await res.json();
+    },
+
+    async savePushConfig(payload) {
+        const token = this.getToken();
+        const res = await fetch('/api/v1/system/push', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            let detail = '';
+            try { detail = (await res.json()).detail || ''; } catch (_) { /* sin cuerpo */ }
+            throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+        }
+        return await res.json();
+    },
+
+    async testPushConfig(payload) {
+        const token = this.getToken();
+        const res = await fetch('/api/v1/system/push-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            let detail = '';
+            try { detail = (await res.json()).detail || ''; } catch (_) { /* sin cuerpo */ }
+            throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+        }
+        return await res.json();
+    },
+
     async saveProxyConfig(payload) {
         const token = this.getToken();
         const res = await fetch('/api/v1/system/proxy', {

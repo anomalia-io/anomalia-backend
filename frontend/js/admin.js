@@ -1330,8 +1330,34 @@ export const admin = {
             if (proxyUrlEl) proxyUrlEl.value = cfg.proxy_url || '';
             const proxyEnabledEl = document.getElementById('proxy-enabled');
             if (proxyEnabledEl) proxyEnabledEl.checked = !!cfg.proxy_enabled;
+            try {
+                const pushCfg = await api.getPushConfig();
+                const pushEnabledEl = document.getElementById('push-enabled');
+                if (pushEnabledEl) pushEnabledEl.checked = !!pushCfg.push_enabled;
+                const pushProjectEl = document.getElementById('push-project-id');
+                if (pushProjectEl) pushProjectEl.value = pushCfg.fcm_project_id || '';
+                const pushJsonEl = document.getElementById('push-service-account-json');
+                if (pushJsonEl) pushJsonEl.value = '';
+                const pushFileEl = document.getElementById('push-service-account-file');
+                if (pushFileEl) pushFileEl.value = '';
+                this.renderPushStatus(pushCfg);
+            } catch (e) {
+                console.error(e);
+            }
         } catch (e) {
             console.error(e);
+        }
+    },
+
+    renderPushStatus(cfg) {
+        const el = document.getElementById('push-credentials-status');
+        if (!el) return;
+        if (!cfg || !cfg.has_service_account) {
+            el.textContent = 'Sin credencial';
+        } else if (!cfg.service_account_valid) {
+            el.textContent = 'Credencial inválida';
+        } else {
+            el.textContent = `Credencial: ${cfg.service_account_client_email || 'ok'}`;
         }
     },
 
@@ -1361,6 +1387,58 @@ export const admin = {
         try {
             await api.testSmtpConfig(to);
             alert('Email de prueba enviado correctamente.');
+        } catch (e) {
+            alert(e.message);
+        }
+    },
+
+    async savePushConfig() {
+        const raw = document.getElementById('push-service-account-json')?.value?.trim() || '';
+        const payload = {
+            push_enabled: document.getElementById('push-enabled')?.checked ?? false,
+            fcm_project_id: document.getElementById('push-project-id')?.value?.trim() || ''
+        };
+        if (raw) {
+            const isPemKey = raw.includes('BEGIN PRIVATE KEY') || raw.startsWith('-----BEGIN');
+            if (!isPemKey) {
+                try {
+                    JSON.parse(raw);
+                } catch (_) {
+                    alert('El contenido ingresado no es un JSON válido ni una clave privada PEM.');
+                    return;
+                }
+            }
+            payload.fcm_service_account_json = raw;
+        }
+        try {
+            const cfg = await api.savePushConfig(payload);
+            const jsonEl = document.getElementById('push-service-account-json');
+            if (jsonEl) jsonEl.value = '';
+            const fileEl = document.getElementById('push-service-account-file');
+            if (fileEl) fileEl.value = '';
+            this.renderPushStatus(cfg);
+            alert('Configuración Android / Push guardada correctamente.');
+        } catch (e) {
+            alert(e.message);
+        }
+    },
+
+    async testPushConfig() {
+        const token = prompt('Token FCM destino (dejar vacio para todos los dispositivos registrados):');
+        const payload = {
+            title: 'Anomalia - Prueba de push',
+            body: 'Notificacion de prueba desde la consola de Anomalia.'
+        };
+        if (token && token.trim()) payload.fcm_token = token.trim();
+        try {
+            const result = await api.testPushConfig(payload);
+            const errors = (result.errors || [])
+                .map(e => `- ${e.token || 'credencial'}: ${e.error}`)
+                .join('\n');
+            let msg = `Push: ${result.delivered}/${result.attempted} entregados.`;
+            if (result.skipped) msg += `\nOmitido: ${result.skipped}`;
+            if (errors) msg += `\n${errors}`;
+            alert(msg);
         } catch (e) {
             alert(e.message);
         }

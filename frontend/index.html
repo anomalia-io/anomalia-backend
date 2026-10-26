@@ -453,6 +453,31 @@
                                 <button id="btn-save-proxy" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-save mr-1"></i> Guardar Proxy</button>
                             </div>
                         </div>
+                        <div class="border rounded-xl p-4 space-y-4">
+                            <h3 class="text-sm font-bold uppercase tracking-wider dynamic-text-accent flex items-center space-x-2"><i class="fa-brands fa-android"></i><span>Android</span></h3>
+                            <p class="text-xs opacity-75">Configuración de notificaciones push FCM. Podés importar el archivo JSON completo de la Service Account de Firebase o pegar directamente la clave privada (<span class="font-mono">private.key</span>).</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div class="flex items-center space-x-2 md:col-span-2">
+                                    <input type="checkbox" id="push-enabled" class="rounded dynamic-input">
+                                    <label class="text-xs uppercase opacity-75 font-bold">Habilitar envíos de notificaciones push</label>
+                                    <span id="push-credentials-status" class="text-xs opacity-60 ml-auto"></span>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Project ID de Firebase</label>
+                                    <input type="text" id="push-project-id" placeholder="mi-proyecto-firebase" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs uppercase opacity-75 mb-1">Service Account JSON o Clave Privada (private.key)</label>
+                                    <input type="file" id="push-service-account-file" accept="application/json,.json,.key,.pem,text/plain" class="w-full dynamic-input border rounded-xl px-3 py-2">
+                                    <textarea id="push-service-account-json" rows="4" placeholder="Pegá aquí el JSON de la service account o la clave privada "-----BEGIN PRIVATE KEY-----"..." class="w-full dynamic-input border rounded-xl px-3 py-2 mt-2 font-mono text-xs"></textarea>
+                                    <p class="text-xs opacity-60 mt-1">Las credenciales se almacenan de forma segura en la base de datos y nunca se exponen al navegador.</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
+                                <button id="btn-test-push" class="dynamic-card border text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-paper-plane mr-1"></i> Probar Push</button>
+                                <button id="btn-save-push" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-save mr-1"></i> Guardar Configuración Android</button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

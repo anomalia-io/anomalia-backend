@@ -75,6 +75,30 @@ Todos los endpoints bajo `/api/v1/system` requieren rol **`admin`** (`Depends(ve
   { "proxy_url": "http://proxy.empresa.com:8080", "proxy_enabled": true }
   ```
 
+### Push FCM (specs/018)
+
+Todos requieren rol **`admin`**. La service account se guarda en `system_settings.fcm_service_account_json` y **nunca** se devuelve al navegador.
+
+* **Ruta:** `GET /api/v1/system/push`
+* **Descripción:** Devuelve `{push_enabled, fcm_project_id, has_service_account, service_account_valid, service_account_client_email, service_account_project_id}`.
+* **Ruta:** `PUT /api/v1/system/push`
+* **Descripción:** Guarda la configuración. `fcm_service_account_json` debe ser el JSON de una service account de Firebase con `client_email` y `private_key`; si `fcm_project_id` se omite, se deriva del JSON. Un `project_id` que no coincida con la credencial responde `400`. Campo ausente = sin cambios.
+* **Payload:**
+  ```json
+  {
+    "push_enabled": true,
+    "fcm_project_id": "anomalia-b1f5f",
+    "fcm_service_account_json": "{...}"
+  }
+  ```
+* **Ruta:** `POST /api/v1/system/push-test`
+* **Descripción:** Envía un push de prueba. Si `fcm_token` se omite, se envía a todos los dispositivos registrados. Devuelve `{attempted, delivered, errors, skipped}` con el detalle crudo de FCM (`skipped` ∈ `push_disabled|not_configured|no_tokens|auth_error`).
+* **Payload:**
+  ```json
+  { "fcm_token": "<token opcional>", "title": "Prueba", "body": "Hola" }
+  ```
+* **Nota:** el `google-services.json` es configuración del cliente Android; el backend necesita la **service account** (Firebase Console → Project settings → Service accounts).
+
 * **Ruta:** `GET /api/v1/system/backup/export?password=...`
 * **Descripción:** Exporta un JSON cifrado (Fernet + PBKDF2) con las tablas de configuración: `users`, `roles`, `profiles`, `user_roles`, `role_profiles`, `user_tenants`, `role_tenants`, `tenants`, `tenant_datasources`, `ai_settings`, `oidc_providers`, `system_settings`. Excluye datos operativos (`ui_tickets`, `job_state`, `alert_history`, `port_mapping`, `audit_deletions`) y la **infraestructura** (`infrastructure_nodes`, `tenant_vmalert_instances`): cada clúster la gestiona vía deploy (spec 015).
 * **Descarga:** `anomalia-backup.json`

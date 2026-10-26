@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from ..auth import verify_admin_token
 from ..database import get_db_connection
 from ..mailer import send_email
+from ..push import load_device_tokens, send_push_to_tokens, validate_service_account
 from ..workers.base import enqueue_job_tx
 
 router = APIRouter(prefix="/api/v1/system", tags=["System Settings"])
@@ -100,6 +101,18 @@ class SmtpConfigRequest(BaseModel):
 class ProxyConfigRequest(BaseModel):
     proxy_url: Optional[str] = None
     proxy_enabled: Optional[bool] = None
+
+
+class PushConfigRequest(BaseModel):
+    push_enabled: Optional[bool] = None
+    fcm_project_id: Optional[str] = None
+    fcm_service_account_json: Optional[str] = Field(None, repr=False)
+
+
+class PushTestRequest(BaseModel):
+    fcm_token: Optional[str] = None
+    title: Optional[str] = None
+    body: Optional[str] = None
 
 
 class SmtpTestRequest(BaseModel):
@@ -242,6 +255,166 @@ def update_proxy_config(payload: ProxyConfigRequest):
         conn.close()
 
     return _public_config(_get_system_config())
+
+
+def _get_push_settings() -> dict:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT push_enabled, fcm_project_id, fcm_service_account_json
+            FROM system_settings ORDER BY id LIMIT 1;
+            """
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=500, detail="system_settings no inicializado.")
+        return {
+            "push_enabled": bool(row[0]),
+            "fcm_project_id": row[1] or "",
+            "fcm_service_account_json": row[2] or "",
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def _public_push_settings(config: dict) -> dict:
+    """Vista pública de la config push: nunca devuelve la private key."""
+    raw = config["fcm_service_account_json"]
+    client_email = ""
+    sa_project_id = ""
+    valid = False
+    if raw:
+        try:
+            service_account = validate_service_account(raw)
+            client_email = service_account.get("client_email", "")
+            sa_project_id = service_account.get("project_id", "")
+            valid = True
+        except ValueError:
+            valid = False
+    return {
+        "push_enabled": config["push_enabled"],
+        "fcm_project_id": config["fcm_project_id"] or sa_project_id,
+        "has_service_account": bool(raw),
+        "service_account_valid": valid,
+        "service_account_client_email": client_email,
+        "service_account_project_id": sa_project_id,
+    }
+
+
+@router.get("/push", dependencies=[Depends(verify_admin_token)])
+def get_push_config():
+    """Configuración de push FCM (sin secretos) para la consola admin."""
+    return _public_push_settings(_get_push_settings())
+
+
+@router.put("/push", dependencies=[Depends(verify_admin_token)])
+def update_push_config(payload: PushConfigRequest):
+    """Guarda las credenciales FCM. La service account queda solo en la BD."""
+    current = _get_push_settings()
+    updates: dict = {}
+    service_account = None
+
+    if payload.push_enabled is not None:
+        updates["push_enabled"] = payload.push_enabled
+
+    if payload.fcm_service_account_json is not None:
+        raw = payload.fcm_service_account_json.strip()
+        if raw:
+            try:
+                service_account = validate_service_account(raw)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
+        updates["fcm_service_account_json"] = raw
+    elif current["fcm_service_account_json"]:
+        try:
+            service_account = validate_service_account(current["fcm_service_account_json"])
+        except ValueError:
+            service_account = None
+
+    requested_project = (
+        payload.fcm_project_id.strip() if payload.fcm_project_id is not None else None
+    )
+    if requested_project:
+        if service_account:
+            sa_project = service_account.get("project_id") or ""
+            if sa_project and requested_project != sa_project:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"fcm_project_id ('{requested_project}') no coincide con el "
+                        f"project_id de la service account ('{sa_project}')."
+                    ),
+                )
+        updates["fcm_project_id"] = requested_project
+    elif payload.fcm_service_account_json is not None and service_account:
+        # Credencial nueva y project_id vacío: el proyecto lo determina la cuenta.
+        updates["fcm_project_id"] = (
+            service_account.get("project_id") or current["fcm_project_id"]
+        )
+    elif payload.fcm_project_id is not None:
+        updates["fcm_project_id"] = ""
+
+    if not updates:
+        return _public_push_settings(current)
+
+    set_clause = ", ".join(f"{k} = %s" for k in updates)
+    values = list(updates.values()) + [datetime.utcnow()]
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            f"UPDATE system_settings SET {set_clause}, updated_at = %s WHERE id = 1;",
+            values,
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"Error guardando config push: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return _public_push_settings(_get_push_settings())
+
+
+@router.post("/push-test", dependencies=[Depends(verify_admin_token)])
+def test_push_config(payload: PushTestRequest):
+    """Envía un push de prueba y devuelve el detalle crudo de FCM.
+
+    Si no se indica ``fcm_token`` se envía a todos los dispositivos registrados.
+    """
+    config = _get_push_settings()
+    if not config["push_enabled"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Push deshabilitado: activá el interruptor y guardá antes de probar.",
+        )
+    if not config["fcm_service_account_json"] or not config["fcm_project_id"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Faltan credenciales FCM: cargá la service account y el project_id.",
+        )
+
+    token = (payload.fcm_token or "").strip()
+    tokens = [token] if token else load_device_tokens(None)
+    if not tokens:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No hay dispositivos FCM registrados. Iniciá sesión en la app "
+                "móvil para registrar el token."
+            ),
+        )
+
+    title = (payload.title or "Anomalia - Prueba de push").strip()
+    body = (
+        payload.body or "Notificación de prueba desde la consola de Anomalia."
+    ).strip()
+    return send_push_to_tokens(tokens, title, body, {"test": "true"})
 
 
 def _derive_key(password: str, salt: bytes) -> bytes:

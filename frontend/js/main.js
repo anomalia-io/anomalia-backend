@@ -317,6 +317,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById('btn-save-smtp')?.addEventListener('click', () => admin.saveSmtpConfig());
     document.getElementById('btn-test-smtp')?.addEventListener('click', () => admin.testSmtpConfig());
     document.getElementById('btn-save-proxy')?.addEventListener('click', () => admin.saveProxyConfig());
+    document.getElementById('btn-save-push')?.addEventListener('click', () => admin.savePushConfig());
+    document.getElementById('btn-test-push')?.addEventListener('click', () => admin.testPushConfig());
+    document.getElementById('push-service-account-file')?.addEventListener('change', (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const textarea = document.getElementById('push-service-account-json');
+            if (textarea) textarea.value = String(reader.result || '');
+        };
+        reader.readAsText(file);
+    });
     document.getElementById('btn-export-bkp')?.addEventListener('click', () => admin.exportBackup());
     document.getElementById('btn-import-bkp')?.addEventListener('click', () => admin.importBackup());
 
