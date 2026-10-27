@@ -4,14 +4,81 @@ API y workers del backend de **Anomalia**, la plataforma multitenant de observab
 
 Incluye la **consola web** (JavaScript Vanilla) servida por el propio backend.
 
-## Stack
+## 👤 Para Usuario Final (probar el backend)
 
-- **Python 3.10+**, **FastAPI** + **Uvicorn**
-- **PostgreSQL 15**, **SQLAlchemy**, **psycopg2**
+No necesitas clonar este repo si solo quieres probar Anomalia. El stack completo se despliega desde `anomalia-infra`.
+
+Si quieres correrlo localmente para pruebas:
+
+```bash
+cd anomalia-backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Endpoints principales:**
+- `GET /healthz` - Health check
+- `GET /api/v1/status` - Estado del sistema
+- `POST /api/v1/system/backup/import` - Importar backup (auth requerido)
+- `GET /api/v1/admin/jobs` - Listado de jobs (admin)
+
+**Pruebas integradas** (ejecutables después de deploy):
+- `scripts/smtp-test/run-test-smtp.sh` - receptor local `aiosmtpd`
+- `scripts/smtp-test/etch-test.sh` - envío real a Ethereal
+- `scripts/oidc-test/run-test-idp.sh` - IdP mock para SSO
+
+## 👨‍💻 Para Contribuidor/Developer
+
+Trabajas con este repo cuando modificas la API, workers, routers o lógica de negocio. Flujo SSD:
+
+### 1. Entorno
+```bash
+cd anomalia-backend
+pip install -r requirements.txt          # o pip install -e . para desarrollo activo
+```
+
+### 2. Validación SSD (before commit)
+- [ ] Cargar skill `anomalia-backend-skill`
+- [ ] Leer spec relevante (`specs/003-aiops-alert-pipeline`, `specs/018-alert-ai-analysis-and-delivery`, etc.)
+- [ ] Verificar `constitution.md` principios
+- [ ] `pytest` pasa todos los tests
+- [ ] `gitleaks dir .` (en `anomalia-meta/` o repo correspondiente) - pasa limpio
+
+### 3. Especificaciones
+- Si tu cambio altera comportamiento documentado → actualizar spec en `anomalia-meta/specs/`
+- Si es nueva funcionalidad → crear spec nueva con número libre
+- **Siempre** que agregues nuevos endpoints/comandos: actualizar `AGENTS.md` en `anomalia-meta`
+
+### 4. Post-Change (si afecta infraestructura)
+```bash
+# En anomalia-infra (workspace padre):
+cd ../anomalia-infra
+ansible-playbook -i inventory.ini destroy-infra.yml && \
+ansible-playbook -i inventory.ini deploy-infra.yml
+```
+
+### 5. Commiteo
+```bash
+git add .
+git commit -S -m "feat: <descripción>"    # -S firma SSH
+git push origin main
+```
+
+### 6. Tests
+```bash
+pytest                                    # tests unitarios
+pytest -k "specific_test"                 # test específico
+```
+
+## Stack (detalle)
+
+- **Python 3.10+**, **FastAPI** + **Uvicorn** (ASGI)
+- **PostgreSQL 15**, **SQLAlchemy**, **psycopg2** (ORM)
 - **JWT/OIDC** (`python-jose`, `PyJWT`, `passlib`/`bcrypt`)
-- **OpenTelemetry** + **Prometheus** + **Pyroscope**
-- **Ansible** embebida (jobs de infraestructura)
-- Web: **HTML5/CSS3/JS Vanilla** (modular: `frontend/js/{api,state,ui,admin,main}.js`)
+- **OpenTelemetry** (API, SDK, FastAPI Instrumentation, OTLP HTTP)
+- **Prometheus Client** + **Pyroscope** (telemetría)
+- **Ansible** embebida (solo `ansible.builtin`; sin colecciones Galaxy)
+- Web: **HTML5/CSS3/JS Vanilla** modular (`frontend/js/{api,state,ui,admin,main}.js`)
 
 ## Estructura
 
@@ -33,14 +100,14 @@ pytest.ini
 - PostgreSQL 15 accesible vía `DATABASE_URL`
 - (Opcional) Ollama para el proveedor IA local
 
-## Desarrollo
+## Desarrollo (detalle)
 
 ```bash
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Tests
+## Tests (detalle)
 
 ```bash
 pip install -r requirements-dev.txt
