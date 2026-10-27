@@ -371,6 +371,7 @@ export const ui = {
 
         if (isAdmin) {
             html += `<button data-admintab="general" id="admin-tab-btn-general" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-3 transition dynamic-card border border-transparent"><i class="fa-solid fa-gear w-5 dynamic-text-accent"></i><span>General</span></button>`;
+            html += `<button data-admintab="android" id="admin-tab-btn-android" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-3 transition dynamic-card border border-transparent"><i class="fa-brands fa-android w-5 dynamic-text-accent"></i><span>Android</span></button>`;
             html += `<button data-admintab="bkp" id="admin-tab-btn-bkp" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-3 transition dynamic-card border border-transparent"><i class="fa-solid fa-database w-5 dynamic-text-accent"></i><span>BKP</span></button>`;
         }
         if (hasProfile('users_manager')) {
