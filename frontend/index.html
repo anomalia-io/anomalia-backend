@@ -83,16 +83,28 @@
         </div>
 
         <div class="flex items-center space-x-4">
-            <!-- Global AI Assistant & Documentation Nav Action Buttons -->
-            <div class="flex items-center space-x-2">
-                <button id="gitbook-toggle-nav" class="dynamic-card hover:opacity-80 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 border" title="Abrir Documentación GitBook">
+            <div class="relative" id="docs-dropdown">
+                <button id="docs-toggle" type="button" class="dynamic-card hover:opacity-80 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 border" aria-haspopup="true" aria-expanded="false" aria-controls="docs-menu" title="Documentación">
                     <i class="fa-solid fa-book dynamic-text-accent"></i>
                     <span class="hidden lg:inline">Docs</span>
+                    <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i>
                 </button>
-                <button id="ai-assistant-toggle-nav" class="dynamic-accent hover:opacity-90 px-3 py-2 rounded-lg text-sm font-semibold transition flex items-center space-x-2 shadow" title="Asistente IA">
-                    <i class="fa-solid fa-robot"></i>
-                    <span class="hidden lg:inline">Asistente IA</span>
-                </button>
+                <div id="docs-menu" role="menu" aria-label="Guías de documentación" class="hidden absolute right-0 mt-2 w-72 max-h-[70vh] overflow-y-auto dynamic-card border rounded-xl shadow-lg z-30 p-2">
+                    <a role="menuitem" href="/guides/index.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-book-open dynamic-text-accent w-4"></i><span>Inicio</span></a>
+                    <a role="menuitem" href="/guides/tenants-workflow.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-building dynamic-text-accent w-4"></i><span>Flujo de tenants</span></a>
+                    <a role="menuitem" href="/guides/iam-abm.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-users dynamic-text-accent w-4"></i><span>ABM de identidad y acceso (IAM)</span></a>
+                    <a role="menuitem" href="/guides/tickets-workflow.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-ticket dynamic-text-accent w-4"></i><span>Flujo de tickets</span></a>
+                    <a role="menuitem" href="/guides/inicio-rapido.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-bolt dynamic-text-accent w-4"></i><span>Inicio rápido</span></a>
+                    <a role="menuitem" href="/guides/arquitectura-general.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-sitemap dynamic-text-accent w-4"></i><span>Arquitectura general</span></a>
+                    <a role="menuitem" href="/guides/consolas-observabilidad.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-desktop dynamic-text-accent w-4"></i><span>Consolas de observabilidad</span></a>
+                    <a role="menuitem" href="/guides/dashboards-parses.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-chart-line dynamic-text-accent w-4"></i><span>Dashboards y Parses</span></a>
+                    <a role="menuitem" href="/guides/alertas-notificaciones.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-bell dynamic-text-accent w-4"></i><span>Alertas y notificaciones</span></a>
+                    <a role="menuitem" href="/guides/seguridad-accesos.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-shield-halved dynamic-text-accent w-4"></i><span>Seguridad y accesos</span></a>
+                    <a role="menuitem" href="/guides/backup-importacion.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-database dynamic-text-accent w-4"></i><span>Backup e importación</span></a>
+                    <a role="menuitem" href="/guides/sso-oidc.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-key dynamic-text-accent w-4"></i><span>SSO / OIDC</span></a>
+                    <a role="menuitem" href="/guides/administracion-infraestructura.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-server dynamic-text-accent w-4"></i><span>Administración de infraestructura</span></a>
+                    <a role="menuitem" href="/guides/glosario-faq.html" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:opacity-80 transition"><i class="fa-solid fa-circle-question dynamic-text-accent w-4"></i><span>Glosario y FAQ</span></a>
+                </div>
             </div>
 
             <!-- Centro de notificaciones (spec 017): campana + badge + panel -->
@@ -365,22 +377,6 @@
                     </div>
                 </section>
 
-                <!-- Perfiles (Abm) -->
-                <section id="admin-view-profiles" class="admin-tab-view hidden space-y-6">
-                    <div class="dynamic-card border rounded-2xl p-6 shadow-xl">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold flex items-center space-x-2"><i class="fa-solid fa-id-card dynamic-text-accent"></i><span>ABM de Perfiles de Usuario</span></h2>
-                            <div class="space-x-2">
-                                <button id="btn-open-profile-modal" class="dynamic-accent text-xs px-4 py-2 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i> Crear Perfil</button>
-                                <button id="btn-refresh-profiles" class="dynamic-card border text-xs px-3 py-2 rounded-lg transition hover:opacity-80"><i class="fa-solid fa-rotate-right mr-1"></i> Actualizar</button>
-                            </div>
-                        </div>
-                        <div id="admin-profiles-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <p class="text-xs opacity-75">Cargando perfiles...</p>
-                        </div>
-                    </div>
-                </section>
-
                 <section id="admin-view-general" class="admin-tab-view hidden space-y-6">
                     <div class="dynamic-card border rounded-2xl p-6 shadow-xl space-y-6">
                         <div class="flex justify-between items-center">
@@ -400,7 +396,7 @@
                                 <div class="flex justify-start">
                                     <div id="adminMobileQr"></div>
                                 </div>
-                                <p class="text-xs opacity-60 mt-2">Escanea con la app móvil para preconfigurar el servidor (deep link anomalia://config). Requiere HTTPS en producción.</p>
+                                <p class="text-xs opacity-60 mt-2">Escanea con la app móvil para preconfigurar el servidor (deep link anomalia://config). Para probar en el celular, abrí esta web por la IP de la LAN. Requiere HTTPS en producción.</p>
                             </div>
                         </div>
                         <div class="border rounded-xl p-4 space-y-4">
@@ -713,69 +709,6 @@
 
         </main>
 
-        <!-- AI Assistant Floating Panel with Minimize/Maximize -->
-        <div id="ai-assistant-panel" class="fixed bottom-6 right-6 z-50 hidden">
-            <div id="ai-assistant-card" class="dynamic-card border rounded-2xl shadow-2xl w-[380px] h-[480px] flex flex-col overflow-hidden transition-all duration-200">
-                <div class="flex justify-between items-center p-3 border-b dynamic-border bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-t-2xl">
-                    <h4 class="font-bold text-sm flex items-center space-x-2">
-                        <i class="fa-solid fa-robot dynamic-text-accent"></i>
-                        <span id="ai-assistant-context">Asistente IA</span>
-                    </h4>
-                    <div class="flex items-center space-x-1">
-                        <button id="ai-assistant-context-btn" class="text-xs opacity-60 hover:opacity-100 px-2 py-1 rounded-lg transition" title="Cambiar contexto">
-                            <i class="fa-solid fa-globe"></i>
-                        </button>
-                        <button id="ai-assistant-minimize" class="text-xs opacity-60 hover:opacity-100 px-2 py-1 rounded-lg transition" title="Minimizar / Restaurar">
-                            <i class="fa-solid fa-window-minimize"></i>
-                        </button>
-                        <button id="ai-assistant-maximize" class="text-xs opacity-60 hover:opacity-100 px-2 py-1 rounded-lg transition" title="Maximizar / Pantalla completa">
-                            <i class="fa-solid fa-expand"></i>
-                        </button>
-                        <button id="ai-assistant-close" class="text-xs opacity-50 hover:opacity-100 px-2 py-1" title="Cerrar">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                </div>
-                <div id="ai-assistant-body" class="flex-1 flex flex-col overflow-hidden">
-                    <div id="ai-assistant-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs"></div>
-                    <div class="p-3 border-t dynamic-border">
-                        <div class="flex gap-2">
-                            <input type="text" id="ai-assistant-input" placeholder="Pregunta sobre el contexto actual o stack..." 
-                                    class="flex-1 dynamic-input border rounded-xl px-3 py-2 text-xs">
-                            <button id="ai-assistant-send" class="dynamic-accent px-3 py-2 rounded-xl text-xs font-semibold">
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
-                        </div>
-                        <p id="ai-assistant-hint" class="text-[10px] opacity-60 mt-1 text-center"></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- GitBook Documentation Modal (Updated URL) -->
-        <div id="gitbook-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-            <div class="dynamic-card border rounded-2xl w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col overflow-hidden">
-                <div class="flex justify-between items-center p-4 border-b dynamic-border bg-gradient-to-r from-primary/10 to-purple-500/10">
-                    <h3 class="font-bold text-base flex items-center space-x-2">
-                        <i class="fa-solid fa-book dynamic-text-accent"></i>
-                        <span>Documentación Oficial (GitBook)</span>
-                    </h3>
-                    <div class="flex items-center space-x-2">
-                        <a href="https://anomalia.gitbook.io/anomalia-docs" target="_blank" class="text-xs px-3 py-1.5 rounded-xl dynamic-card border flex items-center space-x-1 hover:opacity-80 transition" title="Abrir en pestaña nueva">
-                            <i class="fa-solid fa-external-link-alt"></i>
-                            <span>Abrir externa</span>
-                        </a>
-                        <button id="gitbook-modal-close" class="text-sm opacity-75 hover:opacity-100 p-1.5 rounded-lg transition" title="Cerrar">
-                            <i class="fa-solid fa-xmark text-lg"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="flex-1 relative bg-white dark:bg-zinc-900">
-                    <iframe id="gitbook-iframe" src="https://anomalia.gitbook.io/anomalia-docs" class="w-full h-full border-0" title="Documentación GitBook"></iframe>
-                </div>
-            </div>
-        </div>
-
         </div>
 
         <!-- Floating Buttons Removed (Now located in Top Header Bar) -->
@@ -1015,7 +948,7 @@
                                 <i class="fa-solid fa-paper-plane"></i>
                             </button>
                         </div>
-                        <p class="text-[10px] opacity-60 mt-1 text-center">Solo responde sobre reglas vmalert/PromQL</p>
+                        <p class="text-[10px] opacity-60 mt-1 text-center">Recibe el borrador actual · solo responde sobre reglas vmalert/PromQL</p>
                     </div>
                 </div>
             </div>
@@ -1078,35 +1011,6 @@
             <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
                 <button data-modal="modal-role" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
                 <button id="btn-save-role" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE PERFIL -->
-    <div id="modal-profile" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
-                <h3 id="modal-profile-title" class="text-lg font-bold">Crear / Editar Perfil</h3>
-                <button data-modal="modal-profile" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <input type="hidden" id="profile-id">
-            <div class="space-y-3 text-sm">
-                <div>
-                    <label class="block text-xs uppercase opacity-75 mb-1">Nombre del Perfil</label>
-                    <input type="text" id="profile-input-name" class="w-full dynamic-input border rounded-xl px-3 py-2" placeholder="ej: Users Manager">
-                </div>
-                <div>
-                    <label class="block text-xs uppercase opacity-75 mb-1">Código Técnico / Slug</label>
-                    <input type="text" id="profile-input-code" class="w-full dynamic-input border rounded-xl px-3 py-2" placeholder="ej: users_manager">
-                </div>
-                <div>
-                    <label class="block text-xs uppercase opacity-75 mb-1">Descripción</label>
-                    <textarea id="profile-input-desc" class="w-full dynamic-input border rounded-xl px-3 py-2" rows="2"></textarea>
-                </div>
-            </div>
-            <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
-                <button data-modal="modal-profile" class="close-modal-btn px-4 py-2 rounded-xl text-xs dynamic-card border">Cancelar</button>
-                <button id="btn-save-profile" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Guardar</button>
             </div>
         </div>
     </div>

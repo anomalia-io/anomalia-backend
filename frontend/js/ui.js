@@ -181,9 +181,6 @@ export const ui = {
             activeBtn.classList.add('border-current', 'dynamic-text-accent');
         }
 
-        // Emit tab-changed event for AI assistant context switching
-        window.dispatchEvent(new CustomEvent('tab-changed', { detail: { tab: tabName } }));
-
         // La pestaña Alertas muestra sólo el listado/bitácora y la búsqueda. La
         // administración de consolas (Alerts conf) vive en el panel de control.
         if (tabName === 'alerts') {
@@ -382,9 +379,6 @@ export const ui = {
         }
         if (hasProfile('roles_manager')) {
             html += `<button data-admintab="roles" id="admin-tab-btn-roles" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-3 transition dynamic-card border border-transparent"><i class="fa-solid fa-shield-halved w-5 dynamic-text-accent"></i><span>Roles (Abm)</span></button>`;
-        }
-        if (hasProfile('profile_manager')) {
-            html += `<button data-admintab="profiles" id="admin-tab-btn-profiles" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-3 transition dynamic-card border border-transparent"><i class="fa-solid fa-id-card w-5 dynamic-text-accent"></i><span>Perfiles (Abm)</span></button>`;
         }
         if (hasProfile('infra_manager')) {
             html += `<button data-admintab="infra" id="admin-tab-btn-infra" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-3 transition dynamic-card border border-transparent"><i class="fa-solid fa-server w-5 dynamic-text-accent"></i><span>Infraestructura</span></button>`;

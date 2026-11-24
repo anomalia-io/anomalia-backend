@@ -86,8 +86,10 @@ class TenantWorker(BaseWorker):
 
             is_profiles = (t_type == 'profiles')
 
-            # Update progress
-            self._update_progress_sync(job_id, 15, "assigning_ids")
+            steps: list = []
+            deadline = self._job_deadline(job_id)
+            self._check_deadline(deadline, "assigning_ids")
+            steps = self._tenant_create_step(job_id, steps, "assigning_ids", 12, status="running")
 
             # 1. Auto-generate account_id / project_id using sequences. Los tenants
             #    pyroscope (type='profiles') quedan NULL: sus perfiles no viven en
@@ -108,7 +110,9 @@ class TenantWorker(BaseWorker):
                 )
                 conn.commit()
 
-            self._update_progress_sync(job_id, 30, "seeding_datasources")
+            steps = self._tenant_create_step(job_id, steps, "assigning_ids", 15)
+            self._check_deadline(deadline, "seeding_datasources")
+            steps = self._tenant_create_step(job_id, steps, "seeding_datasources", 20, status="running")
 
             # 2. Seed tenant_datasources (idempotent)
             if is_profiles:
@@ -117,7 +121,9 @@ class TenantWorker(BaseWorker):
                 self._seed_tenant_datasources(cursor, tenant_id, t_type, account_id, project_id)
             conn.commit()
 
-            self._update_progress_sync(job_id, 45, "auto_placement")
+            steps = self._tenant_create_step(job_id, steps, "seeding_datasources", 30)
+            self._check_deadline(deadline, "auto_placement")
+            steps = self._tenant_create_step(job_id, steps, "auto_placement", 35, status="running")
 
             # 3. Auto placement for vmauth if needed (punto 4)
             if vmauth_placement_mode == 'auto' and vmauth_node_id is None:
@@ -148,6 +154,10 @@ class TenantWorker(BaseWorker):
                 )
                 conn.commit()
 
+            steps = self._tenant_create_step(job_id, steps, "auto_placement", 45)
+            self._check_deadline(deadline, "activating")
+            steps = self._tenant_create_step(job_id, steps, "activating", 50, status="running")
+
             cursor.close()
             conn.close()
             conn = cursor = None
@@ -155,33 +165,54 @@ class TenantWorker(BaseWorker):
             # 5. Marcar 'active' antes del deploy: asi el regen que encola el propio
             #    vmalert ya incluye la ruta del tenant (un solo regen, spec 011 §4.4).
             self._set_tenant_status(tenant_id, 'active')
+            steps = self._tenant_create_step(job_id, steps, "activating", 52)
 
             needs_vmalert = has_alerts and not is_profiles
             if needs_vmalert:
-                self._update_progress_sync(job_id, 60, "deploying_vmalert")
+                self._check_deadline(deadline, "deploying_vmalert")
+                steps = self._tenant_create_step(job_id, steps, "deploying_vmalert", 55, status="running")
                 dep_job = self._enqueue_standalone_job('vmalert_deploy', tenant_id)
                 status = self._wait_for_job(dep_job, VMALERT_DEPLOY_WAIT_SECONDS)
+                self._check_deadline(deadline, "deploying_vmalert")
                 if status != 'succeeded':
                     raise RuntimeError(f"vmalert_deploy terminó en estado '{status}'")
-                self._update_progress_sync(job_id, 80, "provisioning_parses")
+                steps = self._tenant_create_step(job_id, steps, "deploying_vmalert", 80)
             else:
                 # Sin vmalert: publicar igual la ruta del tenant (vmauth) + scrape.
-                self._update_progress_sync(job_id, 65, "publishing_routes")
+                self._check_deadline(deadline, "regenerating_scrapes")
+                steps = self._tenant_create_step(job_id, steps, "regenerating_scrapes", 60, status="running")
                 dep_job = self._enqueue_standalone_regen(tenant_id)
                 status = self._wait_for_job(dep_job, REGEN_WAIT_SECONDS)
+                self._check_deadline(deadline, "regenerating_scrapes")
                 if status != 'succeeded':
                     raise RuntimeError(f"vmalert_regen_scrapes terminó en estado '{status}'")
-                self._update_progress_sync(job_id, 80, "provisioning_parses")
+                steps = self._tenant_create_step(job_id, steps, "regenerating_scrapes", 80)
+
+            self._check_deadline(deadline, "provisioning_parses")
+            steps = self._tenant_create_step(job_id, steps, "provisioning_parses", 85, status="running")
 
             # 6. Parses per-tenant (project + datasource + dashboards). Propaga errores.
             provision_tenant_parses(tenant_id)
+            self._check_deadline(deadline, "provisioning_parses")
 
-            self._update_progress_sync(job_id, 100, "done")
+            self._tenant_create_step(job_id, steps, "provisioning_parses", 95)
+            self._tenant_create_step(job_id, steps, "done", 100)
         finally:
             if cursor is not None:
                 cursor.close()
             if conn is not None:
                 conn.close()
+
+    def _tenant_create_step(self, job_id: str, steps: list, name: str, pct: int,
+                            status: str = "done", phase: Optional[str] = None) -> list:
+        self._log_step(job_id, steps, name, status, pct=pct)
+        self._write_steps(job_id, steps, pct=pct, phase=phase or name)
+        return steps
+
+    @staticmethod
+    def _check_deadline(deadline: Optional[float], phase: str) -> None:
+        if deadline is not None and time.monotonic() > deadline:
+            raise TimeoutError(f"tenant_create excedió su timeout en {phase}")
 
     def _set_tenant_status(self, tenant_id: int, status: str) -> None:
         conn = get_db_connection()
@@ -278,6 +309,11 @@ class TenantWorker(BaseWorker):
         if job_type == 'backup_import':
             logger.warning("backup_import huérfano %s: ejecutando rollback total", job_id)
             self._rollback_backup_import(job_id, payload or {}, RuntimeError('orphaned'))
+        elif job_type == 'tenant_create':
+            if ref_id is None:
+                return
+            logger.warning("tenant_create huérfano %s: ejecutando rollback del tenant %s", job_id, ref_id)
+            self._rollback_tenant_create(ref_id, RuntimeError('orphaned'))
 
     def _rollback_tenant_create(self, tenant_id: int, error: Exception) -> None:
         """Retira todo lo creado por el alta fallida y audita el rollback (spec 011 §4.9).

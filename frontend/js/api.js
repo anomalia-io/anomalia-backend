@@ -1,3 +1,23 @@
+const apiFetch = async (url, options = {}) => {
+    const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+    if (!res.ok) {
+        let detail = '';
+        try { detail = (await res.json()).detail || ''; } catch (_) { detail = ''; }
+        const err = new Error(detail || 'No se pudo completar la solicitud');
+        err.status = res.status;
+        throw err;
+    }
+    return await res.json();
+};
+
 export const api = {
     getToken() {
         return localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
@@ -158,6 +178,13 @@ export const api = {
         if (!res.ok) throw new Error('No se pudo obtener el listado de tenants');
         const data = await res.json();
         return data.tenants || [];
+    },
+
+    async createTenant(payload) {
+        return await apiFetch('/api/v1/admin/tenants', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
     },
 
     async fetchVmalertNodes() {
@@ -438,7 +465,12 @@ async saveTenantVmalertRules(tenantId, yamlText) {
         });
         if (!res.ok) {
             let detail = '';
-            try { detail = (await res.json()).detail || ''; } catch (_) { /* sin cuerpo */ }
+            try {
+                const body = await res.json();
+                detail = Array.isArray(body.detail)
+                    ? body.detail.map((item) => item.msg || JSON.stringify(item)).join('; ')
+                    : (body.detail || '');
+            } catch (_) { /* sin cuerpo */ }
             throw new Error(detail || 'Error en chat IA');
         }
         return await res.json();

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquitectura general · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3"><div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div><div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div></div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html" aria-current="page"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Arquitectura</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</span><span class="badge badge-violet">FastAPI · PostgreSQL · Ansible</span><span class="badge badge-emerald">Multitenant</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Arquitectura general</h1>
+<p class="text-sm text-slate-300">Anomalía separa el plano de control (gateway Nginx + FastAPI y PostgreSQL) del plano de datos (Victoria, vmagent, vmauth, vmalert, Alertmanager y Parses). Nginx publica <code>80/443</code> y reenvía a Uvicorn en <code>8000</code>; el inventario de Ansible es la única fuente de topología.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-layer-group text-sky-400 mr-2" aria-hidden="true"></i>Capas y responsabilidades</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Capa</th><th>Componentes</th><th>Responsabilidad</th></tr></thead>
+<tbody>
+<tr><td>Cliente</td><td>Panel web vanilla JS, app Flutter</td><td>Interacción, JWT en almacenamiento local, tarjetas por tenant.</td></tr>
+<tr><td>Gateway</td><td>Nginx (80/443/8443) + FastAPI/Uvicorn (8000)</td><td>Terminación TLS y redirect en Nginx; autenticación, RBAC, webhooks, tickets y reenvío con scoping en FastAPI.</td></tr>
+<tr><td>Estado</td><td>PostgreSQL 15, Redis/RQ-like cuando aplica</td><td>Config, usuarios, roles, perfiles, tenants, jobs y notificaciones; señales/colas ligeras.</td></tr>
+<tr><td>Ejecución</td><td>WorkerSupervisor, TenantWorker, VmalertWorker</td><td>Jobs duraderos, reconciliación y tareas dependientes.</td></tr>
+<tr><td>Infra</td><td>Ansible sobre systemd, Docker/Podman</td><td>Units de servicios y units derivadas por tenant.</td></tr>
+<tr><td>Datos</td><td>VictoriaMetrics/Logs/Traces, Pyroscope, Parses</td><td>Ingesta, consulta, dashboards y perfilado.</td></tr>
+</tbody>
+</table></div>
+<div class="warn mt-4">Corrección de texto en la fila de ejecución: las tareas dependientes son <strong>encoladas y esperadas</strong> ("tareas dependientes"), nunca disparadas sin control.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-diagram-project text-violet-300 mr-2" aria-hidden="true"></i>Flujo extremo a extremo</h2>
+<pre class="code">[ Web / Flutter ]
+        | JWT en Authorization
+        v
+[ Nginx :443 --&gt; FastAPI :8000 ] ----&gt; [ PostgreSQL ]
+        |                     users · roles · profiles · tenants
+        |                     job_state · notifications
+        |
+        +--&gt; GET/POST UI ticket --&gt; /ui/redeem/&lt;ticket&gt; --&gt; proxy
+        |                                                     |
+        |                                     vmui | vlui | vtui | Pyroscope | Parses
+        |
+        +--&gt; enqueue job --&gt; [ ejecutor unico ]
+                                  |-- TenantWorker
+                                  |-- VmalertWorker
+                                  v
+                            [ Ansible ]
+                                  |
+                    systemd: vmagent · vmauth · vmalert-&lt;slug&gt;
+                              Alertmanager · Pyroscope
+                                  v
+                        [ Victoria + Parses ]</pre>
+<div class="note mt-4"><strong>Ejecutor único:</strong> el stack corre dos contenedores de gateway, pero solo el backend <code>anomalia_gw</code> ejecuta workers; <code>anomalia_gw_tls</code> es Nginx. Un <code>pg_try_advisory_lock</code> de sesión evita que dos procesos corran Ansible sobre el mismo directorio temporal. La clave del lock del ejecutor es distinta de la usada por <code>init_db</code>.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-shield-halved text-emerald-300 mr-2" aria-hidden="true"></i>Gateway y seguridad perimetral</h2>
+<div class="grid md:grid-cols-2 gap-3 text-xs text-slate-300">
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-sky mb-2">Dos servicios</span><p><code>anomalia_gw</code> (Uvicorn en 8000, único ejecutor de workers) y <code>anomalia_gw_tls</code> (Nginx en 80/443/8443, leaf firmado por CA local). El directorio de certificados sobrevive al destroy; la CA se confía en cada cliente.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-emerald mb-2">Exenciones</span><p>Nginx redirige <code>80 → 443</code>. Las rutas <code>/metrics</code>, <code>/healthz</code> y el webhook de Alertmanager se consultan en claro en el puerto 8000; el webhook no debe recibir un <code>301</code> porque perdería el payload.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-violet mb-2">Firewall</span><p>Los puertos de lectura de Victoria están restringidos por el role <code>victoria_firewall</code>: la UI se abre siempre por el proxy con tickets.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-amber mb-2">Scoping</span><p>AccountID/ProjectID son por tenant y salen de <code>tenant_datasources</code>. El cliente nunca aporta valores de scoping.</p></div>
+</div>
+<p class="text-xs text-slate-400 mt-3">Detalle en <a class="inline" href="seguridad-accesos.html">seguridad y accesos</a>.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-gears text-amber-300 mr-2" aria-hidden="true"></i>Modelo de jobs</h2>
+<pre class="code">job_state
+  id · type · ref_id · status · phase · progress_pct
+  steps · created_by · timeout_at · heartbeat_at · started_at
+
+Tipos:
+  tenant_create · tenant_delete · parses_provision
+  backup_import · vmalert_deploy · vmalert_undeploy
+  vmalert_redeploy · vmalert_reload · vmalert_sync_rules
+  vmalert_regen_scrapes · alert_dispatch (según despliegue)</pre>
+<p class="text-sm text-slate-300 mt-3">El polling usa <code>FOR UPDATE SKIP LOCKED</code>, marca <code>running</code> y hace commit en la misma transacción. El estado terminal es <code>succeeded</code> (no <code>completed</code>). Con heartbeat y timeout se recuperan huérfanos tras un reinicio.</p>
+<div class="note mt-3">Las notificaciones se emiten al finalizar un job con <code>created_by</code> no nulo. Los jobs internos no notifican. Ver <a class="inline" href="alertas-notificaciones.html">alertas y notificaciones</a>.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-boxes-stacked text-pink-300 mr-2" aria-hidden="true"></i>Tenants internos y control</h2>
+<p class="text-sm text-slate-300">Los tenants <code>is_internal=TRUE</code> (METRICS, TRACES, PROFILES, AUDIT_LOGS) se siembran automáticamente y se reconcilian en cada arranque del worker. Sus reglas son canónicas, viven en <code>app/internal_rules/</code> y son inmutables desde la API (<code>409</code>).</p>
+<div class="danger mt-3">PROFILES no lleva instancia vmalert: Pyroscope no expone una API PromQL compatible. Su salud se vigila desde el tenant METRICS. El puerto <code>8880 + tenant_id</code> aplica a los tenants con vmalert.</div>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>API</span><span>FastAPI /api/v1</span></div>
+<div class="kv"><span>BD</span><span>PostgreSQL 15</span></div>
+<div class="kv"><span>Ejecutor</span><span>advisory lock</span></div>
+<div class="kv"><span>Config</span><span>Ansible</span></div>
+<div class="kv"><span>Servicios</span><span>systemd</span></div>
+<div class="kv"><span>UI proxy</span><span>tickets</span></div>
+<div class="kv"><span>Dashboards</span><span>Parses</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-3"><i class="fa-solid fa-list-check text-violet-300 mr-2" aria-hidden="true"></i>Invariantes</h3>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">Inventario = topología.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Unit solo en su grupo.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Referencias cruzadas toleran grupos vacíos.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Idempotencia estricta.</div></div>
+<div class="step"><div class="step-n">5</div><div class="text-xs text-slate-300">Units auto-recuperadas por systemd.</div></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-link text-emerald-300 mr-2" aria-hidden="true"></i>Relacionado</h3>
+<p class="text-xs text-slate-400"><a class="inline" href="inicio-rapido.html">Inicio rápido</a> · <a class="inline" href="administracion-infraestructura.html">Infraestructura</a> · <a class="inline" href="tenants-workflow.html">Tenants</a></p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+</body>
+</html>

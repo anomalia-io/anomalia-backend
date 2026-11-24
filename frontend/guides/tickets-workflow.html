@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flujo de tickets UI · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+button.sim{display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border-radius:10px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.12);color:#e0f2fe;font-size:11px;font-weight:700;cursor:pointer;transition:.18s}
+button.sim:hover{background:rgba(56,189,248,.22)}
+button.sim.alt{border-color:rgba(167,139,250,.35);background:rgba(139,92,246,.12)}
+button.sim.alt:hover{background:rgba(139,92,246,.22)}
+#event-log div{font:11.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:4px 0;border-bottom:1px dashed rgba(148,163,184,.12)}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3"><div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div><div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div></div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html" aria-current="page"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Tickets UI</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Proxy de consolas</span><span class="badge badge-emerald">200 OK</span><span class="badge badge-violet">Spec 010</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Emisión, canje y sesión de tickets UI</h1>
+<p class="text-sm text-slate-300">El JWT vive en <code>localStorage</code> y no viaja en la navegación. Para abrir una consola se emite un ticket opaco con el JWT, se canjea una sola vez y se mantiene una cookie de sesión mientras la pestaña siga en uso.</p>
+<div class="danger mt-4"><strong>Corrección de contrato:</strong> <code>POST /api/v1/ui/ticket</code> responde <strong>200 OK</strong>, no 201. El cuerpo contiene únicamente <code>{"url": "/ui/redeem/&lt;ticket&gt;"}</code>.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-code text-sky-400 mr-2" aria-hidden="true"></i>1. Emisión</h2>
+<pre class="code">POST /api/v1/ui/ticket
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
+
+{
+  "tenant_id": 42,
+  "scope": "metrics"
+}
+
+HTTP/1.1 200 OK
+{ "url": "/ui/redeem/&lt;ticket_opaco&gt;" }</pre>
+<div class="note mt-4"><code>tenant_id</code> es <strong><code>Optional[int]</code></strong>: es obligatorio para todos los scopes salvo <code>alertmanager_global</code>, que no tiene tenant. Si falta en un scope que lo requiere, la API devuelve <code>422</code>.</div>
+<p class="text-sm text-slate-300 mt-3">Antes de emitir, el backend valida el JWT, resuelve el perfil exigido por el scope <strong>consultando la BD</strong> (<code>user_roles → role_profiles → profiles</code>), re-chequea la pertenencia al tenant (<code>user_tenants ∪ role_tenants</code>) y resuelve el upstream. Si el upstream no está listo, falla rápido y no entrega una URL que luego no sirva.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-th-list text-violet-300 mr-2" aria-hidden="true"></i>2. Scopes reales y mapeo a perfil</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Scope</th><th>Perfil requerido</th><th>Upstream</th><th>Tenant</th></tr></thead>
+<tbody>
+<tr><td><code>metrics</code></td><td><code>access_metrics</code></td><td>VictoriaMetrics vmui</td><td>sí</td></tr>
+<tr><td><code>logs</code></td><td><code>access_logs</code></td><td>VictoriaLogs vlui</td><td>sí</td></tr>
+<tr><td><code>traces</code></td><td><code>access_traces</code></td><td>VictoriaTraces vtui</td><td>sí</td></tr>
+<tr><td><code>profiling</code></td><td><code>access_Continuous_Profiling</code></td><td>Pyroscope</td><td>sí</td></tr>
+<tr><td><code>dashboards</code></td><td><code>access_dasboards</code></td><td>Parses (Perses)</td><td>sí</td></tr>
+<tr><td><code>audit</code></td><td><code>audit</code></td><td>VictoriaLogs / auditoría</td><td>sí</td></tr>
+<tr><td><code>vmalert</code></td><td><code>alerts_manager</code></td><td>vmalert del tenant</td><td>sí</td></tr>
+<tr><td><code>alertmanager_global</code></td><td><code>alerts_manager</code></td><td>Alertmanager global</td><td>no</td></tr>
+</tbody>
+</table></div>
+<div class="warn mt-4"><code>dashboards</code> es un scope real y su perfil es <code>access_dasboards</code> (con esa grafía). Dejarlo fuera del mapa hacía que la petición devolviera <code>400</code>.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-arrows-rotate text-emerald-300 mr-2" aria-hidden="true"></i>3. Canje, cookie y expiración deslizante</h2>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300"><code>GET /ui/redeem/&lt;ticket&gt;</code> es el único punto navegable sin credencial. Marca <code>consumed_at</code> y redirige con <code>307</code> al mount del scope.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Fija la cookie <code>anomalia_ui=&lt;ticket&gt;</code> con <code>Path=/ui/&lt;ticket&gt;</code>, <code>Max-Age=1800</code>, <strong>HttpOnly</strong>, <strong>SameSite=Lax</strong> y <strong>Secure solo si el request es HTTPS</strong>.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Cada petición válida al proxy renueva la vida del ticket <strong>cuando quedan menos de 15 minutos</strong> (TTL 30 min, umbral 15 min) y vuelve a escribir la cookie para que el navegador no la deseche antes de tiempo.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Las consolas de administración (<code>vmalert</code>, <code>alertmanager_global</code>) re-validan el perfil desde la BD en cada request.</div></div>
+<div class="danger mt-4"><strong>No confundir:</strong> el <strong>uso único aplica al canje del ticket</strong>, no a la cookie. Después del canje, la cookie se reutiliza durante toda la sesión. La cookie <strong>no está cifrada</strong>: contiene el valor opaco del ticket, cuya vigencia y permisos se comprueban en el servidor.</div>
+<div class="warn mt-3"><strong>No hay auditoría persistida</strong> de emisión ni canje en este flujo: solo se registra con <code>logger</code>. La tabla <code>ui_tickets</code> guarda estado operativo (ticket, usuario, tenant, scope, expiración, consumo), no una bitácora de auditoría. Para auditoría de acceso use los mecanismos del gateway.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-triangle-exclamation text-amber-300 mr-2" aria-hidden="true"></i>4. Códigos de error</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Código</th><th>Causas en este flujo</th></tr></thead>
+<tbody>
+<tr><td><code>400</code></td><td><code>scope</code> desconocido; ruta de UI inválida; perfil inexistente para una consola de administración.</td></tr>
+<tr><td><code>401</code></td><td>Token inválido o usuario inexistente; ticket inválido, expirado o ya usado; sesión de UI requerida.</td></tr>
+<tr><td><code>403</code></td><td>Sin perfil del scope; sin acceso al tenant; ticket de otro tenant; project de Parses ajeno; método de escritura no permitido en consolas de solo lectura.</td></tr>
+<tr><td><code>404</code></td><td>Tenant sin <code>tenant_datasources</code> de lectura; upstream o ruta API de Parses inexistente.</td></tr>
+<tr><td><code>409</code></td><td>Conflicto de estado del upstream (por ejemplo, vmalert del tenant aún no desplegado al resolver la consola).</td></tr>
+<tr><td><code>422</code></td><td>Falta <code>tenant_id</code> en un scope que lo requiere.</td></tr>
+<tr><td><code>503</code></td><td>No hay nodo disponible para resolver el upstream solicitado.</td></tr>
+</tbody>
+</table></div>
+<div class="note mt-4">Un ticket expirado devuelve una página HTML legible si el navegador pidió el documento, o JSON si lo pidió un <code>fetch</code> de la propia consola. Así se evita el bucle de 401 que dejaba la consola en blanco.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-flask text-pink-300 mr-2" aria-hidden="true"></i>5. Simulador corregido</h2>
+<p class="text-sm text-slate-300">Emití, canjeá y hacé peticiones con la cookie. El contador de sesión muestra cuántas peticiones reutilizan la misma cookie: el ticket se canjea una vez, la cookie se usa muchas.</p>
+<div class="flex flex-wrap gap-2 mt-4">
+<button type="button" class="sim" id="btn-emit"><i class="fa-solid fa-plus" aria-hidden="true"></i>Emitir ticket (200)</button>
+<button type="button" class="sim" id="btn-redeem"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>Canjear una vez</button>
+<button type="button" class="sim alt" id="btn-cookie"><i class="fa-solid fa-cookie-bite" aria-hidden="true"></i>Petición con cookie</button>
+<button type="button" class="sim alt" id="btn-bearer"><i class="fa-solid fa-key" aria-hidden="true"></i>Petición con Bearer</button>
+<button type="button" class="sim alt" id="btn-advance"><i class="fa-solid fa-clock" aria-hidden="true"></i>Simular 16 min inactivo</button>
+<button type="button" class="sim alt" id="btn-reset"><i class="fa-solid fa-rotate" aria-hidden="true"></i>Reiniciar</button>
+</div>
+<div class="grid sm:grid-cols-4 gap-3 mt-5">
+<div class="rounded-xl border border-slate-700/50 p-3"><div class="text-[10px] uppercase tracking-wide text-slate-500">Ticket</div><div class="font-mono text-xs text-sky-300 mt-1" id="tk-value">—</div></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><div class="text-[10px] uppercase tracking-wide text-slate-500">Canje</div><div class="text-xs mt-1" id="tk-status">sin emitir</div></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><div class="text-[10px] uppercase tracking-wide text-slate-500">Sesión (cookie)</div><div class="text-lg font-extrabold text-emerald-300 mt-1" id="tk-sessions">0</div></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><div class="text-[10px] uppercase tracking-wide text-slate-500">Vida restante</div><div class="text-lg font-extrabold text-violet-300 mt-1" id="tk-ttl">—</div></div>
+</div>
+<div class="rounded-xl border border-slate-700/50 bg-slate-950/60 p-4 mt-4 max-h-64 overflow-auto" id="event-log" aria-live="polite"></div>
+<div class="note mt-4">El simulador corre solo en tu navegador: no envía peticiones ni guarda secretos. Representa el contador de sesión y la renovación deslizante del ticket real.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-list-check text-emerald-300 mr-2" aria-hidden="true"></i>Verificación rápida</h2>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300"><code>POST</code> con perfil insuficiente → <code>403</code>; con scope inexistente → <code>400</code>.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Canjear dos veces el mismo ticket → <code>401</code> en el segundo intento.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Reutilizar la cookie tras el canje → peticiones correctas y contador creciente.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Inactividad &gt; 15 min → se renueva en la siguiente petición válida.</div></div>
+<div class="step"><div class="step-n">5</div><div class="text-xs text-slate-300">Cerrar la pestaña y dejar caducar → accesos con <code>401</code> y página legible.</div></div>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>Emisión</span><span>POST /ui/ticket</span></div>
+<div class="kv"><span>Respuesta</span><span>200 OK</span></div>
+<div class="kv"><span>tenant_id</span><span>Optional[int]</span></div>
+<div class="kv"><span>Scopes</span><span>8</span></div>
+<div class="kv"><span>Cookie</span><span>anomalia_ui</span></div>
+<div class="kv"><span>TTL / umbral</span><span>30 / 15 min</span></div>
+<div class="kv"><span>Auditoría</span><span>solo logger</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-3"><i class="fa-solid fa-cookie-bite text-emerald-300 mr-2" aria-hidden="true"></i>Cookie</h3>
+<div class="kv"><span>Cifrada</span><span>No</span></div>
+<div class="kv"><span>HttpOnly</span><span>Sí</span></div>
+<div class="kv"><span>SameSite</span><span>Lax</span></div>
+<div class="kv"><span>Secure</span><span>Solo HTTPS</span></div>
+<div class="kv"><span>Uso único</span><span>Del ticket</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-link text-violet-300 mr-2" aria-hidden="true"></i>Relacionado</h3>
+<p class="text-xs text-slate-400"><a class="inline" href="consolas-observabilidad.html">Consolas</a> · <a class="inline" href="dashboards-parses.html">Parses</a> · <a class="inline" href="seguridad-accesos.html">Seguridad</a> · <a class="inline" href="glosario-faq.html">Glosario</a></p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+<script>
+const TTL = 30 * 60 * 1000;
+const THRESHOLD = 15 * 60 * 1000;
+const sim = { ticket: null, consumed: false, expiresAt: 0, sessions: 0, total: 0 };
+const logBox = document.getElementById('event-log');
+
+function logSim(message, tone) {
+  const line = document.createElement('div');
+  line.textContent = new Date().toLocaleTimeString() + '  ' + message;
+  line.style.color = tone === 'bad' ? '#fda4af' : tone === 'good' ? '#86efac' : '#cbd5e1';
+  logBox.appendChild(line);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function renderSim() {
+  document.getElementById('tk-value').textContent = sim.ticket || '—';
+  const status = document.getElementById('tk-status');
+  status.textContent = !sim.ticket ? 'sin emitir' : sim.consumed ? 'canjeado' : 'pendiente';
+  status.style.color = sim.consumed ? '#86efac' : '#fcd34d';
+  document.getElementById('tk-sessions').textContent = String(sim.sessions);
+  const remaining = sim.ticket ? Math.max(0, Math.round((sim.expiresAt - Date.now()) / 60000)) : null;
+  document.getElementById('tk-ttl').textContent = remaining === null ? '—' : remaining + ' min';
+}
+
+function expired() {
+  return !sim.ticket || Date.now() >= sim.expiresAt;
+}
+
+function touch() {
+  if (sim.expiresAt - Date.now() < THRESHOLD) {
+    sim.expiresAt = Date.now() + TTL;
+    logSim('Quedaban menos de 15 min: expires_at desplazado y cookie reescrita', 'good');
+  }
+}
+
+document.getElementById('btn-emit').addEventListener('click', function () {
+  sim.ticket = 'tk_' + Math.random().toString(36).slice(2, 11);
+  sim.consumed = false;
+  sim.expiresAt = Date.now() + TTL;
+  sim.sessions = 0;
+  sim.total = 0;
+  logSim('POST /api/v1/ui/ticket -> 200 OK  {"url":"/ui/redeem/' + sim.ticket + '"}', 'good');
+  logSim('Perfil resuelto en BD; tenant verificado; cookie aun no existe');
+  renderSim();
+});
+
+document.getElementById('btn-redeem').addEventListener('click', function () {
+  if (expired()) {
+    logSim('GET /ui/redeem/... -> 401 (ticket invalido o expirado)', 'bad');
+    return;
+  }
+  if (sim.consumed) {
+    logSim('GET /ui/redeem/... -> 401 (ticket de un solo uso: ya fue canjeado)', 'bad');
+    return;
+  }
+  sim.consumed = true;
+  sim.sessions = 1;
+  sim.total = 1;
+  logSim('GET /ui/redeem/' + sim.ticket + ' -> 307', 'good');
+  logSim('consumed_at escrito; cookie anomalia_ui (HttpOnly, SameSite=Lax) fijada', 'good');
+  renderSim();
+});
+
+document.getElementById('btn-cookie').addEventListener('click', function () {
+  if (!sim.consumed) {
+    logSim('Sin canje no hay cookie de sesion: canjea primero', 'bad');
+    return;
+  }
+  if (expired()) {
+    logSim('GET /ui/' + sim.ticket + '/... -> 401 (sesion caducada)', 'bad');
+    return;
+  }
+  sim.sessions += 1;
+  sim.total += 1;
+  logSim('GET /ui/' + sim.ticket + '/... con cookie -> 200 (peticion de sesion #' + sim.sessions + ')', 'good');
+  touch();
+  renderSim();
+});
+
+document.getElementById('btn-bearer').addEventListener('click', function () {
+  if (expired()) {
+    logSim('Peticion con Bearer -> 401 (ticket expirado)', 'bad');
+    return;
+  }
+  sim.total += 1;
+  logSim('Peticion con Authorization: Bearer -> tenant verificado en BD', 'good');
+  touch();
+  renderSim();
+});
+
+document.getElementById('btn-advance').addEventListener('click', function () {
+  if (!sim.ticket) {
+    logSim('Primero emití un ticket', 'bad');
+    return;
+  }
+  sim.expiresAt -= 16 * 60 * 1000;
+  logSim('Simulados 16 min de inactividad; la vida restante cayo por debajo del umbral');
+  renderSim();
+});
+
+document.getElementById('btn-reset').addEventListener('click', function () {
+  sim.ticket = null;
+  sim.consumed = false;
+  sim.expiresAt = 0;
+  sim.sessions = 0;
+  sim.total = 0;
+  logBox.textContent = '';
+  logSim('Simulador reiniciado');
+  renderSim();
+});
+
+renderSim();
+logSim('Listo: emití un ticket para comenzar');
+</script>
+</body>
+</html>

@@ -36,10 +36,17 @@ El endpoint `POST /api/v1/ai/chat` permite consultar al modelo de lenguaje aplic
 | `pyroscope_query` | Perfiles de rendimiento | Limitado a análisis de CPU/Memoria de Pyroscope. |
 | `parses_query` | Dashboards | Limitado a la estructura y paneles JSON de Parses. |
 
-El payload es `{ "context": "<valor>", "tenant_id": <int?>, "messages": [{ "role": "user", "content": "…" }] }`
-y la respuesta incluye `{ "response": "…", "context": "<valor>" }`. El backend inyecta
-contexto vivo (reglas del tenant + estado de vmalert para `vmalert_rules`; URLs de
-lectura de los datasources para los contextos de consulta).
+El payload es `{ "context": "<valor>", "tenant_id": <int?>, "rules_yaml": "<borrador?>", "messages": [{ "role": "user", "content": "…" }] }`
+y la respuesta incluye `{ "response": "…", "context": "<valor>", "yaml_validation": { "valid": bool, "issues": [{ "line": <int?>, "column": <int?>, "message": "…", "severity": "error" }] } }`.
+El backend inyecta contexto vivo (reglas del tenant + estado de vmalert para `vmalert_rules`; URLs de
+lectura de los datasources para los contextos de consulta). En `vmalert_rules`, el editor envía el
+borrador actual en cada pregunta: esa versión reemplaza al YAML guardado en el prompt y se valida
+antes de llamar al modelo, de modo que errores de sintaxis, indentación o estructura mínima aparecen
+como avisos dentro del chat sin bloquear el guardado.
+
+El proveedor local Ollama usa un timeout de 120s (`AI_TIMEOUT_SECONDS`) y limita la
+generación a 384 tokens (`OLLAMA_NUM_PREDICT`) porque corre en CPU; los valores son
+configurables por variables de entorno y se exponen desde el role `backend`.
 
 > [!WARNING]
 > Si el usuario realiza una pregunta fuera del ámbito autorizado para el contexto activo, el modelo responde obligatoriamente con la frase canónica de fallback:

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administración de infraestructura · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3"><div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div><div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div></div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html" aria-current="page"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Infraestructura</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-server" aria-hidden="true"></i>Ansible</span><span class="badge badge-emerald">systemd</span><span class="badge badge-violet">Spec 013</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Administración de infraestructura</h1>
+<p class="text-sm text-slate-300">El inventario es la única fuente de topología. Cada unidad se despliega solo en los hosts de su grupo, con idempotencia estricta, auto-recuperación systemd y destroy que retira también las units derivadas por tenant.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-network-wired text-sky-400 mr-2" aria-hidden="true"></i>1. Grupos del inventario</h2>
+<pre class="code">all_nodes
+vlogs_storage_nodes · vlogs_insert_nodes · vlogs_select_nodes
+vm_storage_nodes    · vm_insert_nodes    · vm_select_nodes
+vt_storage_nodes    · vt_insert_nodes    · vt_select_nodes
+pyroscope_nodes · vmauth_nodes · vmagent_nodes
+alertmanager_nodes · vmalert_nodes · backend_nodes · parses_nodes</pre>
+<p class="text-sm text-slate-300 mt-3">Un host puede pertenecer a cualquier combinación. Todas las IPs en un solo host es un caso válido, no el diseño objetivo. Ningún play asume monolito; cada task se condiciona con <code>inventory_hostname in groups.get('&lt;grupo&gt;', [])</code>.</p>
+<div class="danger mt-4">Nunca acceder a <code>groups['X']</code> directamente. Usar <code>groups.get('X', [])</code> y referencias cruzadas <code>hostvars[groups['X'][0]]</code> con <code>*_ip | default(ansible_host) | default('127.0.0.1')</code> y rama de fallback para grupos vacíos.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-terminal text-emerald-300 mr-2" aria-hidden="true"></i>2. Comandos de referencia</h2>
+<pre class="code">./scripts/deploy.sh
+./scripts/deploy.sh --yes
+ansible-playbook -i inventory.ini deploy-infra.yml --syntax-check
+ansible-playbook -i inventory.ini deploy-infra.yml
+ansible-playbook -i inventory.ini destroy-infra.yml
+gitleaks dir .</pre>
+<p class="text-xs text-slate-400 mt-3"><code>inventory.ini</code> no se versiona; usar <code>inventory.ini.example</code> como plantilla. <code>gitleaks</code> es obligatorio antes de integrar cambios.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-bolt text-amber-300 mr-2" aria-hidden="true"></i>3. Idempotencia y arranque</h2>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">Tasks repetibles: <code>state=present</code>, <code>ON CONFLICT</code> y convergencia por <code>find</code>, sin duplicar units, reglas, rutas ni redes.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Cada role systemd cierra con <code>systemd: state=started, enabled=yes</code> por unit. El handler de restart solo responde a cambios de template y no revive una unit caída.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Todos los <code>.service.j2</code> declaran <code>After=network-online.target</code>, <code>Wants=network-online.target</code> y <code>StartLimitIntervalSec=0</code> en <code>[Unit]</code>.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Las units bindean a la IP de servicio (<code>*_ip</code>). Sin esperar a la red, <code>bind: cannot assign requested address</code> agota <code>Restart=</code> y deja la unit en <code>failed</code>.</div></div>
+<div class="note mt-4"><code>NetworkManager-wait-online.service</code> ya viene habilitado en la plataforma; el deploy no lo gestiona. Plataformas: Debian 11/12, Ubuntu 20.04/22.04/24.04, RHEL 8/9; <code>x86_64</code>/<code>arm64</code>; Docker CE o Podman rootful.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-layer-group text-violet-300 mr-2" aria-hidden="true"></i>4. vmalert por tenant</h2>
+<pre class="code">deploy-infra.yml:  vmalert_per_tenant: true
+
+unit:     anomalia-vmalert-&lt;tenant_slug&gt;.service
+puerto:   8880 + tenant_id   (METRICS=8881, TRACES=8882, AUDIT_LOGS=8884)
+8880:     reservado a anomalia-vmalert.service (modo single)
+PROFILES: sin vmalert; queda libre
+fallback: pool por-tenant con reserva transaccional en port_mapping
+          UNIQUE(instance_id, host_port)</pre>
+<p class="text-sm text-slate-300 mt-3">El puerto es determinista y se fuerza en la BD; el worker lo recalcula y corrige divergencias históricas en el bootstrap, encolando <code>vmalert_redeploy</code> si la instancia está desplegada. La baja borra la fila de <code>port_mapping</code> para liberar el slot.</p>
+<div class="warn mt-4">Healthcheck de vmalert: <code>GET /health</code> y recarga <code>POST /-/reload</code> (10 s, 3 reintentos, backoff 2/4 s). <code>/-/health</code> pertenece a vmauth/vmagent y devuelve 400 en vmalert.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-route text-pink-300 mr-2" aria-hidden="true"></i>5. Regen de scrapes y rutas</h2>
+<div class="grid md:grid-cols-2 gap-3 text-xs text-slate-300">
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-sky mb-2">vmagent</span><p>El job <code>vmalert_regen_scrapes</code> regenera la config completa desde la BD con <code>vmalert_instances</code> e <code>infra_components</code>. Publica los jobs <code>vmalert-&lt;slug&gt;</code> con relabels, incluido <code>org_id_upper</code>.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-emerald mb-2">vmauth</span><p>Añade rutas por tenant bajo los cuatro mapeos fijos (PROFILES/METRICS/TRACES/AUDIT_LOGS). Cada nodo recibe solo sus tenants filtrando por <code>vmauth_node_id</code> y recarga vía handler systemd.</p></div>
+</div>
+<div class="note mt-4">Lecturas: el proxy habla directo con el nodo <em>select</em>; vmauth queda como router de ingesta. Los puertos de lectura <code>8401</code>, <code>8481</code>, <code>8491</code> y <code>4040</code> se restringen al puente de contenedores, loopback y IP del host.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-boxes-stacked text-rose-300 mr-2" aria-hidden="true"></i>6. Propagación y worker</h2>
+<pre class="code">fuente autoritativa: playbooks raíz de anomalia-infra
+  deploy-infra.yml · destroy-infra.yml · install-binaries.yml · sync-*.yml
+
+destinos en deploy:
+  /opt/anomalia/backend/playbooks
+  /app/playbooks  (horneado por COPY . . en la imagen)
+
+worker por tenant:
+  ansible-playbook -i &lt;ip&gt;, /app/playbooks/install-binaries.yml
+    -e servicio=vmalert
+    -e gestionar_servicios=true
+    -e vmalert_instances=...</pre>
+<div class="danger mt-4"><code>roles/backend/src/</code> es legado muerto: nada lo referencia y no se mantiene. Los fixes van siempre en las plays raíz. Los guards ad-hoc toleran <code>groups.get('all', []) | length == 1</code> porque el worker usa inventario de un solo host sin grupos.</div>
+<p class="text-sm text-slate-300 mt-3">La post-task de deploy resincroniza <code>infrastructure_nodes.admin_password</code> con la clave OS generada en la corrida, solo en <code>backend_nodes</code>. Sin ella, un import o redeploy sin destroy deja la BD desacoplada del OS y el SSH del worker falla con <code>UNREACHABLE!</code>.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-trash-can text-amber-300 mr-2" aria-hidden="true"></i>7. Destroy completo</h2>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">Retira todo lo que crea el deploy, incluidas <code>anomalia-vmalert-*.service</code> descubiertas por <code>find</code>, sin hardcodear slugs ni hostnames.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Los loops de stop usan <code>register</code> + <code>failed_when</code> que tolera <code>could not find the requested service</code> y <code>does not exist</code>, sin <code>ignore_errors</code>: un error real de systemd sí falla.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Se conservan solo las imágenes base compartidas (<code>postgres</code>, <code>ollama</code>) y <code>/opt/anomalia/certs</code>.</div></div>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>Topología</span><span>inventario</span></div>
+<div class="kv"><span>Units</span><span>por grupo</span></div>
+<div class="kv"><span>Boot</span><span>network-online</span></div>
+<div class="kv"><span>Restart</span><span>StartLimitIntervalSec=0</span></div>
+<div class="kv"><span>vmalert</span><span>8880 + tenant_id</span></div>
+<div class="kv"><span>Puertos lectura</span><span>8401/8481/8491/4040</span></div>
+<div class="kv"><span>Destroy</span><span>units derivadas por find</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-link text-emerald-300 mr-2" aria-hidden="true"></i>Relacionado</h3>
+<p class="text-xs text-slate-400"><a class="inline" href="tenants-workflow.html">Alta de tenants</a> · <a class="inline" href="arquitectura-general.html">Arquitectura</a> · <a class="inline" href="backup-importacion.html">Import</a> · <a class="inline" href="glosario-faq.html">Glosario</a></p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+</body>
+</html>

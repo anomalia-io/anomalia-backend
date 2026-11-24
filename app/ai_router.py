@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 from enum import Enum
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -18,8 +19,10 @@ from .ai_providers import (
     get_provider,
 )
 from .ai_status import get_ai_status, record_ai_failure, record_ai_success
+from .vmalert_validation import VmalertValidation, format_validation_summary, validate_vmalert_yaml
 
 router = APIRouter(prefix="/api/v1/ai", tags=["AI Providers"])
+logger = logging.getLogger("anomalia.ai_router")
 
 TEST_PROMPT = "Responde únicamente con la palabra OK."
 
@@ -42,11 +45,13 @@ class ChatRequest(BaseModel):
     context: ChatContext
     messages: List[ChatMessage]
     tenant_id: Optional[int] = None  # Required for vmalert_rules context
+    rules_yaml: Optional[str] = Field(default=None, max_length=100000)
 
 
 class ChatResponse(BaseModel):
     response: str
     context: ChatContext
+    yaml_validation: Optional[VmalertValidation] = None
 
 
 # System prompts per context - STRICTLY limited to prevent injection
@@ -64,7 +69,8 @@ SYSTEM_PROMPTS = {
         "2. NO generes código que no sea reglas de alerta\n"
         "3. NO expliques conceptos fuera del alerting\n"
         "4. Si la pregunta no es sobre reglas de alerta, respondé: 'Solo puedo ayudarte con reglas de alerta vmalert/PromQL.'\n"
-        "5. Tus respuestas deben ser concisas y técnicas\n"
+        "5. Tus respuestas deben ser concisas y técnicas (máximo ~8 líneas)\n"
+        "6. Si el borrador del editor tiene errores de YAML o indentación, explicálos primero y sugerí la corrección concreta\n"
     ),
     ChatContext.VICTORIA_METRICS_QUERY: (
         "Sos un experto en consultas PromQL para VictoriaMetrics. "
@@ -124,7 +130,11 @@ SYSTEM_PROMPTS = {
 }
 
 
-def _fetch_stack_context_data(context: ChatContext, tenant_id: Optional[int]) -> str:
+def _fetch_stack_context_data(
+    context: ChatContext,
+    tenant_id: Optional[int],
+    draft_yaml: Optional[str] = None,
+) -> str:
     """Recupera opcionalmente datos reales del stack según el contexto y el tenant para enriquecer el prompt."""
     if not tenant_id:
         return ""
@@ -150,8 +160,12 @@ def _fetch_stack_context_data(context: ChatContext, tenant_id: Optional[int]) ->
             if inst_row:
                 yaml_content, status, health = inst_row
                 context_info += f"\n- Instancia vmalert Status: {status}, Health: {health}"
-                if yaml_content:
-                    context_info += f"\n- Reglas Actuales YAML:\n```yaml\n{yaml_content[:2000]}\n```"
+            else:
+                yaml_content = None
+            if draft_yaml is not None:
+                context_info += f"\n- BORRADOR ACTUAL DEL EDITOR (sin guardar):\n```yaml\n{draft_yaml}\n```"
+            elif yaml_content:
+                context_info += f"\n- Reglas Actuales YAML:\n```yaml\n{yaml_content[:2000]}\n```"
         
         elif context == ChatContext.VICTORIA_METRICS_QUERY:
             cursor.execute("SELECT read_url FROM tenant_datasources WHERE tenant_id = %s AND type = 'metrics';", (tenant_id,))
@@ -174,12 +188,18 @@ def _fetch_stack_context_data(context: ChatContext, tenant_id: Optional[int]) ->
         if conn: conn.close()
 
 
-def _build_chat_prompt(context: ChatContext, messages: List[ChatMessage], tenant_id: Optional[int] = None) -> str:
-    """Build the full prompt with system prompt + live stack context + conversation history."""
+def _build_chat_prompt(
+    context: ChatContext,
+    messages: List[ChatMessage],
+    tenant_id: Optional[int] = None,
+    draft_yaml: Optional[str] = None,
+    validation: Optional[VmalertValidation] = None,
+) -> str:
     system = SYSTEM_PROMPTS[context]
-    live_data = _fetch_stack_context_data(context, tenant_id)
+    live_data = _fetch_stack_context_data(context, tenant_id, draft_yaml)
+    validation_data = format_validation_summary(validation) if context == ChatContext.VMALET_RULES else ""
     conversation = "\n".join([f"{m.role.upper()}: {m.content}" for m in messages])
-    return f"{system}{live_data}\n\nCONVERSACIÓN:\n{conversation}\n\nASSISTANT:"
+    return f"{system}{live_data}{validation_data}\n\nCONVERSACIÓN:\n{conversation}\n\nASSISTANT:"
 
 
 class AIConfigPayload(BaseModel):
@@ -330,7 +350,7 @@ def list_gemini_models(admin_payload: dict = Depends(verify_admin_token)) -> Dic
     return {"models": models, "current": current}
 
 
-@router.post("/chat", response_model=ChatResponse, dependencies=[Depends(verify_any_user_token)])
+@router.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest, user_payload: dict = Depends(verify_any_user_token)) -> ChatResponse:
     """Chat endpoint with strict context restriction.
     
@@ -350,13 +370,23 @@ def chat(payload: ChatRequest, user_payload: dict = Depends(verify_any_user_toke
         from .auth import verify_tenant_access
         # This will raise 403 if user doesn't have access to the tenant
         verify_tenant_access(payload.tenant_id)(user_payload)
-    
+
+    validation = None
+    if payload.context == ChatContext.VMALET_RULES and payload.rules_yaml is not None:
+        validation = validate_vmalert_yaml(payload.rules_yaml)
+
     provider = get_provider()
-    prompt = _build_chat_prompt(payload.context, payload.messages, payload.tenant_id)
-    
+    prompt = _build_chat_prompt(
+        payload.context,
+        payload.messages,
+        payload.tenant_id,
+        draft_yaml=payload.rules_yaml if payload.context == ChatContext.VMALET_RULES else None,
+        validation=validation,
+    )
+
     try:
         response = provider.generate(prompt)
     except AIProviderError as e:
         raise HTTPException(status_code=502, detail=f"Error del proveedor de IA: {str(e)}")
-    
-    return ChatResponse(response=response, context=payload.context)
+
+    return ChatResponse(response=response, context=payload.context, yaml_validation=validation)

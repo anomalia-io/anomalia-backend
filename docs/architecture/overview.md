@@ -3,10 +3,13 @@
 Anomalia está diseñada bajo una arquitectura modular y multitenant orientada a microservicios e infraestructura distribuida.
 
 ## Componentes del Sistema
-1. **Backend API:** FastAPI (Python) para lógica de negocio, RBAC, gestión de tenants y webhooks.
+1. **Backend API:** FastAPI/Uvicorn (Python 3.10) en el puerto `8000`, sin terminación TLS; lógica de negocio, RBAC, gestión de tenants, workers y webhooks.
 2. **Base de Datos:** PostgreSQL 15 para persistencia transaccional.
-3. **Observabilidad:** VictoriaMetrics, VictoriaLogs, VictoriaTraces, Pyroscope, vmalert, Alertmanager, Parses.
-4. **Interfaces:** Panel Web Vanilla JS y App Móvil Flutter.
+3. **Observabilidad:** VictoriaMetrics, VictoriaLogs, VictoriaTraces, Pyroscope, vmagent, vmalert, Alertmanager, Parses.
+4. **Interfaces:** Panel Web Vanilla JS servido por FastAPI (incluye `/guides`) y App Móvil Flutter.
+
+El despliegue de producción lo orquesta `anomalia-infra`; este documento describe la arquitectura
+de la aplicación, no el procedimiento de instalación.
 
 ## Parses (dashboards por tenant)
 
@@ -33,6 +36,20 @@ tenant), los cambios de UI duran lo que dure la sesión; los permanentes se hace
 `backend/dashboards/native/anomalia_{metrics,traces,profiles}.json`.
 La página `/explore` se habilita con `frontend.explorer.enable: true` (config de Perses
 montado por el rol `parses`, ver `specs/008` §9).
+
+## Autorización: perfiles y tenants
+
+Los perfiles son capacidades **predefinidas por el seed** y asignadas a roles mediante
+`role_profiles`. No se crean ni se editan desde la API: `GET /api/v1/admin/profiles` es de solo
+lectura y se usa para poblar los checkboxes de roles. El permiso correcto es `profile_manager`.
+
+No existe un perfil `alertmanager`. El perfil canónico para reglas vmalert y Alertmanager es
+`alerts_manager`, que también habilita los scopes de consola `vmalert` y `alertmanager_global`.
+El rol `alerts_manager` es una incorporación explícita y recibe asignaciones de tenants
+explícitas: para cualquier operación por tenant se exigen **el perfil** y el acceso a ese tenant
+(`user_tenants ∪ role_tenants`, resuelto en base). La consola global de Alertmanager no tiene
+tenant, pero sí revalida el perfil `alerts_manager` en la emisión del ticket y en cada request
+del proxy.
 
 ## Consolas de Victoria (proxy de tickets)
 
@@ -61,23 +78,29 @@ Detalle en `specs/010-ui-console-proxy.md`.
 
 ## Gateway HTTPS
 
-El role `backend` despliega dos instancias de la misma imagen FastAPI:
+La terminación TLS la hace **Nginx**, no Uvicorn. El role `backend` despliega un contenedor
+`anomalia_gw_tls` con Nginx y el backend en `anomalia_gw`:
 
 | Servicio | Puertos host | TLS | Función |
 |---|---|---|---|
-| `anomaliagw` | `80`, `8000` | no | Redirige a HTTPS; sirve en claro si no hay certificado. **Único ejecutor de workers en background**. |
-| `anomaliagw_tls` | `443` | sí | Sirve la aplicación con `ANOMALIA_RUN_WORKERS=false` (no corre workers). |
+| `anomalia_gw` | `8000` | no | Uvicorn sirve la API, `/healthz`, `/metrics` y ejecuta los workers en background. |
+| `anomalia_gw_tls` | `80`, `443`, `8443` | sí | Nginx redirige `80 → 443`, termina TLS en `443`, expone `8443` solo a la red de contenedores para Parses y hace proxy a `anomalia_gw:8000`. |
 
-`anomaliagw_tls` solo se crea si existe `/opt/anomalia/certs/fullchain.pem`, que
-genera el role `certs` de forma idempotente. El certificado es un **leaf firmado
-por una CA local privada** (`ca.crt`/`ca.key`, CN `Anomalia Root CA`), no un
-autofirmado simple. El directorio `/opt/anomalia/certs` **sobrevive** al
-`destroy-infra.yml`; para rotarlo hace falta `-e certs_force=true`.
+En modo generado (`self_signed`), el role `certs` crea una **CA privada** (`external/ca.crt`,
+CN `Anomalia Root CA`) y un leaf firmado por esa CA (`external/fullchain.pem` y
+`external/privkey.pem`), con SAN para el hostname configurado, `localhost`, `127.0.0.1` y la IP
+del nodo. No es un leaf autofirmado aislado. Los clientes deben confiar manualmente en la CA;
+ningún componente del deploy la instala en navegadores o dispositivos. En modo `provided`, el
+operador entrega el fullchain y la clave sin passphrase, con un SAN que cubra el nombre/IP usado
+por los clientes.
 
-La redirección `FORCE_HTTPS` exime `/metrics`, `/healthz` y
-`/api/v1/webhook/alertmanager` (este último porque Alertmanager postea en claro y
-un redirect `301` descartaría las alertas), y exime los hosts de loopback para
-permitir desarrollo local.
+El directorio `/opt/anomalia/certs` **sobrevive** al `destroy-infra.yml`. Para rotar el material
+generado o cambiar el SAN se usa `--tls-force` en el wrapper o `-e certs_force=true` en el
+playbook; los cambios de `certs_mode` requieren un deploy completo.
 
-Detalle en `specs/007-https-gateway-and-tenant-access.md`.
+Las rutas `/metrics`, `/healthz` y `/api/v1/webhook/alertmanager` están exentas del redirect
+HTTPS (el webhook porque Alertmanager postea en claro y un `301` descartaría las alertas); los
+hosts de loopback también quedan exentos para desarrollo local.
+
+Detalle operativo en `docs/ansible-deployment.md` del repo `anomalia-infra`.
 

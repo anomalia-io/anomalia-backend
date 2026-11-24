@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inicio · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+.tile{display:block;padding:16px;border-radius:14px;background:rgba(15,23,42,.62);border:1px solid rgba(148,163,184,.14);transition:.18s;text-decoration:none;color:inherit;height:100%}
+.tile:hover{border-color:rgba(56,189,248,.45);transform:translateY(-2px)}
+.tile i{color:#7dd3fc}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div>
+<div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div>
+</div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html" aria-current="page"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-book" aria-hidden="true"></i>Documentación</span><span class="badge badge-violet">14 guías</span><span class="badge badge-emerald">Vigente</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Guía operativa de Anomalía</h1>
+<p class="text-sm text-slate-300">Esta colección describe el comportamiento real del gateway Nginx + FastAPI, el ejecutor de jobs sobre PostgreSQL y el stack de observabilidad desplegado con Ansible. Cada guía es autocontenida y se puede abrir de forma directa.</p>
+<div class="note mt-4">Regla de oro: <strong>el inventario define la topología</strong> y <strong>la base define la autorización</strong>. Ningún widget, token o archivo local amplía privilegios por sí solo.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-4"><i class="fa-solid fa-compass text-sky-400 mr-2" aria-hidden="true"></i>Ruta de lectura recomendada</h2>
+<div class="grid sm:grid-cols-2 gap-3">
+<a class="tile" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i><div class="mt-2 font-bold text-sm">1. Inicio rápido</div><p class="text-xs text-slate-400 mt-1">Alta, acceso y primera consola en minutos.</p></a>
+<a class="tile" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i><div class="mt-2 font-bold text-sm">2. Arquitectura</div><p class="text-xs text-slate-400 mt-1">Componentes, flujos y ejecutor único de jobs.</p></a>
+<a class="tile" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i><div class="mt-2 font-bold text-sm">3. IAM y ABM</div><p class="text-xs text-slate-400 mt-1">Usuarios, roles, perfiles y solicitudes.</p></a>
+<a class="tile" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><div class="mt-2 font-bold text-sm">4. Alta de tenants</div><p class="text-xs text-slate-400 mt-1">Job background, fases y rollback.</p></a>
+<a class="tile" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i><div class="mt-2 font-bold text-sm">5. Tickets de UI</div><p class="text-xs text-slate-400 mt-1">Cookie, scopes, expiración y simulador.</p></a>
+<a class="tile" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><div class="mt-2 font-bold text-sm">6. Seguridad</div><p class="text-xs text-slate-400 mt-1">JWT, scopes, TLS y aislamiento de red.</p></a>
+</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-4"><i class="fa-solid fa-th-large text-violet-300 mr-2" aria-hidden="true"></i>Índice completo</h2>
+<div class="grid sm:grid-cols-2 gap-2 text-sm">
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="tenants-workflow.html"><i class="fa-solid fa-layer-group text-sky-400 w-4" aria-hidden="true"></i>Alta y ciclo de vida de tenants</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="iam-abm.html"><i class="fa-solid fa-users-gear text-sky-400 w-4" aria-hidden="true"></i>Usuarios, roles y asignación de perfiles</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="tickets-workflow.html"><i class="fa-solid fa-ticket text-sky-400 w-4" aria-hidden="true"></i>Emisión y canje de tickets</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line text-sky-400 w-4" aria-hidden="true"></i>Consolas de observabilidad</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high text-sky-400 w-4" aria-hidden="true"></i>Dashboards en Parses</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="alertas-notificaciones.html"><i class="fa-solid fa-bell text-sky-400 w-4" aria-hidden="true"></i>Alertas y notificaciones</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="backup-importacion.html"><i class="fa-solid fa-database text-sky-400 w-4" aria-hidden="true"></i>Backup e importación</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="sso-oidc.html"><i class="fa-solid fa-key text-sky-400 w-4" aria-hidden="true"></i>SSO con OIDC</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="administracion-infraestructura.html"><i class="fa-solid fa-server text-sky-400 w-4" aria-hidden="true"></i>Administración de infraestructura</a>
+<a class="inline-flex items-center gap-2 p-2 rounded-lg hover:bg-sky-400/10" href="glosario-faq.html"><i class="fa-solid fa-circle-question text-sky-400 w-4" aria-hidden="true"></i>Glosario y preguntas frecuentes</a>
+</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-diagram-project text-emerald-300 mr-2" aria-hidden="true"></i>Mapa de la plataforma</h2>
+<pre class="code">[ Web / Flutter ] --HTTPS--> [ Nginx :443 ] --HTTP--> [ FastAPI :8000 ]
+                                                         |-- PostgreSQL  config, RBAC, jobs, notificaciones
+                                                         |-- Redis/RQ-like  señales y delay de jobs (cuando aplica)
+                                                         |-- notify_job_outcome --> dueño (created_by)
+                                                         |
+                                                [ ejecutor único ]
+                                               TenantWorker / VmalertWorker
+                                                         |
+                                                Ansible sobre systemd
+                                                         |
+                               VictoriaMetrics | VictoriaLogs | VictoriaTraces | Pyroscope
+                               vmagent :8429 | vmauth | vmalert por tenant | Alertmanager | Parses</pre>
+<p class="text-xs text-slate-400 mt-3">Los puertos de lectura de Victoria están aislados por firewall: el navegador nunca llega a ellos directamente. Todo ingreso pasa por el proxy de tickets del gateway.</p>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>Documentos</span><span>14</span></div>
+<div class="kv"><span>API</span><span>/api/v1</span></div>
+<div class="kv"><span>Auth</span><span>JWT + perfiles</span></div>
+<div class="kv"><span>Jobs</span><span>job_state</span></div>
+<div class="kv"><span>Observabilidad</span><span>Victoria + Parses</span></div>
+<div class="kv"><span>Infra</span><span>Ansible / systemd</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-3"><i class="fa-solid fa-list-check text-violet-300 mr-2" aria-hidden="true"></i>Antes de operar</h3>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">Confirmar el perfil que habilita la acción.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Identificar el tenant y su tipo.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Sondear el job hasta estado terminal.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Verificar notificación al dueño.</div></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-triangle-exclamation text-amber-300 mr-2" aria-hidden="true"></i>Convenciones</h3>
+<p class="text-xs text-slate-400">Los ejemplos usan marcadores como <code>&lt;tenant&gt;</code> o <code>&lt;nodo&gt;</code>. No hay credenciales, IPs reales ni tokens en estas guías.</p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+</body>
+</html>

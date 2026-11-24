@@ -124,6 +124,7 @@ MEDIA_DIR = os.getenv("MEDIA_DIR", os.path.abspath(os.path.join(BASE_DIR, "../me
 app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
 app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
 app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
+app.mount("/guides", StaticFiles(directory=os.path.join(FRONTEND_DIR, "guides"), html=True), name="guides")
 
 
 @app.get("/favicon.ico")

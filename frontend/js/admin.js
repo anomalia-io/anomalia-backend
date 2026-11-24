@@ -6,17 +6,19 @@ const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[c]));
 
+const watchedTenantCreateJobs = new Set();
+
 export const admin = {
     async loadAll() {
         await Promise.all([
             this.loadUsers(),
             this.loadTenantsAdmin(),
             this.loadRolesAdmin(),
-            this.loadProfilesAdmin(),
             this.loadInfraNodes()
         ]);
         // Reanuda el seguimiento de un import en curso (spec 016 §2.6).
         this.resumeBackupImport();
+        this.resumeTenantCreate();
     },
 
     async loadUsers() {
@@ -301,10 +303,14 @@ export const admin = {
         assigning_ids: 'Asignando account/project id...',
         seeding_datasources: 'Sembrando datasources...',
         auto_placement: 'Ubicando en nodos de infraestructura...',
+        activating: 'Activando tenant...',
         deploying_vmalert: 'Desplegando vmalert...',
+        regenerating_scrapes: 'Regenerando scrapes y rutas...',
         publishing_routes: 'Publicando rutas (vmauth/vmagent)...',
         provisioning_parses: 'Creando project y dashboards en Parses...',
-        done: 'Finalizando...'
+        done: 'Finalizando...',
+        rollback: 'Revirtiendo cambios...',
+        error: 'Error'
     },
 
     // Etapas del pipeline de baja (tenant_worker._tenant_delete_sync) para la
@@ -332,85 +338,143 @@ export const admin = {
         const vmauth_placement_mode = document.getElementById('tenant-input-vmauth-placement')?.value;
         const vmauth_node_id = document.getElementById('tenant-input-vmauth-node')?.value ?
             parseInt(document.getElementById('tenant-input-vmauth-node')?.value) : null;
-        const token = api.getToken();
-
-        const method = id ? 'PUT' : 'POST';
-        const url = id ? `/api/v1/admin/tenants/${id}` : '/api/v1/admin/tenants';
-
+        const payload = {
+            name, type, environment, description,
+            placement_mode, vmalert_node_id,
+            vmauth_placement_mode, vmauth_node_id
+        };
         const saveBtn = document.getElementById('btn-save-tenant');
         try {
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    name, type, environment, description,
-                    placement_mode, vmalert_node_id,
-                    vmauth_placement_mode, vmauth_node_id
-                })
-            });
-
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                alert("Error: " + (err.detail || "No se pudo guardar el tenant."));
-                return;
-            }
-
-            const data = await res.json().catch(() => ({}));
-
-            // Edición: no hay job que seguir.
             if (id) {
-                ui.toggleModal('modal-tenant', false);
-                this.loadTenantsAdmin();
-                return;
-            }
-
-            // Alta nueva: el backend devuelve job_id y el trabajo corre en background.
-            const jobId = data.job_id;
-            if (!jobId) {
-                ui.toggleModal('modal-tenant', false);
-                this.loadTenantsAdmin();
-                return;
-            }
-
-            const progress = document.getElementById('tenant-progress');
-            const progressError = document.getElementById('tenant-progress-error');
-            const bar = document.getElementById('tenant-progress-bar');
-            const pct = document.getElementById('tenant-progress-pct');
-            const phase = document.getElementById('tenant-progress-phase');
-            if (progress) progress.classList.remove('hidden');
-            if (progressError) progressError.classList.add('hidden');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.textContent = 'Creando...';
-            }
-
-            state.trackJob(jobId, 'tenant_create');
-            const job = await pollJob(jobId, (j) => {
-                const p = Math.max(0, Math.min(100, j.progress_pct ?? 0));
-                if (bar) bar.style.width = `${p}%`;
-                if (pct) pct.textContent = `${p}%`;
-                if (phase) phase.textContent = this.TENANT_CREATE_PHASES[j.phase] || j.phase || 'Procesando...';
-            });
-
-            if (job.status === 'succeeded') {
-                ui.toggleModal('modal-tenant', false);
-                await ui.refreshUserTenants();
-            } else {
-                const detail = job.error_code ? ` (${job.error_code})` : '';
-                if (progressError) {
-                    progressError.textContent = `El alta falló y se revirtió${detail}.`;
-                    progressError.classList.remove('hidden');
+                const token = api.getToken();
+                const res = await fetch(`/api/v1/admin/tenants/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert("Error: " + (err.detail || "No se pudo guardar el tenant."));
+                    return;
                 }
+                ui.toggleModal('modal-tenant', false);
+                this.loadTenantsAdmin();
+                return;
             }
+
+            const data = await api.createTenant(payload);
+            ui.toggleModal('modal-tenant', false);
+            this.loadTenantsAdmin();
+            const jobId = data?.job_id;
+            if (!jobId) {
+                this._tenantCreateShowProgress(100, 'done', [], { status: 'succeeded' });
+                return;
+            }
+            this._watchTenantCreate(jobId);
         } catch (e) {
             console.error(e);
-            alert("Error de red al guardar tenant.");
+            alert("Error: " + (e.message || "No se pudo guardar el tenant."));
         } finally {
             if (saveBtn) {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Guardar';
             }
+        }
+    },
+
+    _tenantCreateShowProgress(pct, phase, steps, job = {}) {
+        const box = document.getElementById('tenant-progress');
+        const phaseEl = document.getElementById('tenant-progress-phase');
+        const pctEl = document.getElementById('tenant-progress-pct');
+        const barEl = document.getElementById('tenant-progress-bar');
+        const errEl = document.getElementById('tenant-progress-error');
+        let stepsEl = document.getElementById('tenant-progress-steps');
+        if (box && !stepsEl) {
+            stepsEl = document.createElement('ul');
+            stepsEl.id = 'tenant-progress-steps';
+            stepsEl.className = 'space-y-1 pt-1 text-xs opacity-80';
+            box.appendChild(stepsEl);
+        }
+        const STATUS_ICON = {
+            running: 'fa-spinner fa-spin text-amber-400',
+            done: 'fa-circle-check text-emerald-400',
+            failed: 'fa-circle-xmark text-red-400',
+            warning: 'fa-triangle-exclamation text-amber-400',
+            pending: 'fa-circle text-slate-500'
+        };
+        const value = Math.max(0, Math.min(100, Number(pct) || 0));
+        const failed = job.status === 'failed' || job.status === 'cancelled' || Boolean(job.error_code);
+        box?.classList.remove('hidden');
+        errEl?.classList.add('hidden');
+        if (barEl) barEl.style.width = `${value}%`;
+        if (pctEl) pctEl.textContent = `${value}%`;
+        if (phaseEl) {
+            const label = this.TENANT_CREATE_PHASES[phase] || phase || 'Procesando...';
+            phaseEl.textContent = failed ? `${label} (error)` : label;
+        }
+        if (stepsEl) {
+            if (!steps?.length) {
+                stepsEl.classList.add('hidden');
+                stepsEl.innerHTML = '';
+            } else {
+                stepsEl.classList.remove('hidden');
+                stepsEl.innerHTML = steps.map((s) => {
+                    const icon = STATUS_ICON[s.status] || STATUS_ICON.pending;
+                    const detail = s.detail ? ` <span class="opacity-60">— ${escHtml(s.detail)}</span>` : '';
+                    return `<li class="flex items-start gap-1.5"><i class="fa-solid ${icon} mt-[2px] w-3 text-center"></i><span>${escHtml(s.name)}${detail}</span></li>`;
+                }).join('');
+            }
+        }
+        const parts = [];
+        if (failed && job.error_code) parts.push(`Código: ${job.error_code}`);
+        if (failed && job.logs_ref) parts.push(`Detalle: ${job.logs_ref}`);
+        if (failed && !parts.length && job.status !== 'succeeded') parts.push('El alta falló y se revirtió.');
+        if (parts.length && errEl) {
+            errEl.textContent = parts.join(' · ');
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async _watchTenantCreate(jobId) {
+        if (!jobId || watchedTenantCreateJobs.has(jobId)) return;
+        watchedTenantCreateJobs.add(jobId);
+        state.trackJob(jobId, 'tenant_create');
+        this._tenantCreateShowProgress(0, 'init', [], { status: 'queued' });
+        try {
+            const job = await pollJob(jobId, (j) => {
+                this._tenantCreateShowProgress(Number(j.progress_pct) || 0, j.phase || 'init', j.steps, j);
+            });
+            if (job.status === 'failed' || job.status === 'cancelled') {
+                this._tenantCreateShowProgress(Number(job.progress_pct) || 0, job.phase || 'error', job.steps, job);
+                this.loadTenantsAdmin();
+                return;
+            }
+            this._tenantCreateShowProgress(100, 'done', job.steps || [], job);
             this.loadTenantsAdmin();
+            await ui.refreshUserTenants();
+        } catch (e) {
+            if (e.sessionExpired) {
+                const phaseEl = document.getElementById('tenant-progress-phase');
+                if (phaseEl) phaseEl.textContent = e.message;
+                return;
+            }
+            this._tenantCreateShowProgress(0, 'error', [], {
+                status: 'failed', error_code: 'poll_error', logs_ref: e.message
+            });
+        } finally {
+            watchedTenantCreateJobs.delete(jobId);
+        }
+    },
+
+    async resumeTenantCreate() {
+        try {
+            const { jobs } = await api.fetchJobs({ type: 'tenant_create', limit: 20 });
+            for (const job of jobs || []) {
+                if (job.status !== 'queued' && job.status !== 'running') continue;
+                this._watchTenantCreate(job.id);
+            }
+        } catch (_) {
+            return;
         }
     },
 
@@ -625,6 +689,8 @@ export const admin = {
         // Add welcome message
         this.addAIMessage(messagesContainer,
             '¡Hola! Soy tu asistente para reglas vmalert/PromQL. '
+            + 'Reviso el borrador actual del editor en cada pregunta y te aviso '
+            + 'si detecto errores de YAML o indentación. '
             + 'Puedo ayudarte con sintaxis PromQL, funciones de agregación, '
             + 'expresiones de alerta, labels/annotations, y buenas prácticas. '
             + '¿En qué te ayudo?');
@@ -645,9 +711,10 @@ export const admin = {
                     messages: [
                         { role: 'user', content: text }
                     ],
-                    tenant_id: tenantId
+                    tenant_id: tenantId,
+                    rules_yaml: document.getElementById('vmalert-rules-yaml')?.value ?? ''
                 });
-                this.addAIMessage(messagesContainer, response.response);
+                this.addAIMessage(messagesContainer, response.response, response.yaml_validation);
             } catch (err) {
                 this.addAIMessage(messagesContainer, `Error: ${err.message || err}`);
             } finally {
@@ -672,26 +739,54 @@ export const admin = {
     },
 
     addUserMessage(container, text) {
-        const div = document.createElement('div');
-        div.className = 'flex justify-end';
-        div.innerHTML = `
-            <div class="bg-primary/20 text-primary rounded-xl px-3 py-2 max-w-[85%] text-xs">
-                ${text}
-            </div>
-        `;
-        container.appendChild(div);
+        const row = document.createElement('div');
+        row.className = 'flex justify-end';
+        const bubble = document.createElement('div');
+        bubble.className = 'bg-primary/20 text-primary rounded-xl px-3 py-2 max-w-[85%] text-xs';
+        bubble.textContent = text;
+        row.appendChild(bubble);
+        container.appendChild(row);
         container.scrollTop = container.scrollHeight;
     },
 
-    addAIMessage(container, text) {
-        const div = document.createElement('div');
-        div.className = 'flex justify-start';
-        div.innerHTML = `
-            <div class="dynamic-card border rounded-xl px-3 py-2 max-w-[85%] text-xs">
-                ${text}
-            </div>
-        `;
-        container.appendChild(div);
+    addAIMessage(container, text, validation = null) {
+        const row = document.createElement('div');
+        row.className = 'flex justify-start';
+        const bubble = document.createElement('div');
+        bubble.className = 'dynamic-card border rounded-xl px-3 py-2 max-w-[85%] text-xs space-y-2';
+
+        const body = document.createElement('div');
+        body.textContent = text;
+        bubble.appendChild(body);
+
+        if (validation && validation.valid === false && Array.isArray(validation.issues) && validation.issues.length) {
+            const warning = document.createElement('div');
+            warning.className = 'rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-amber-200';
+
+            const title = document.createElement('div');
+            title.className = 'font-semibold';
+            title.textContent = 'Errores en el YAML del editor:';
+            warning.appendChild(title);
+
+            const list = document.createElement('ul');
+            list.className = 'list-disc list-inside mt-1 space-y-1';
+            validation.issues.forEach((issue) => {
+                const item = document.createElement('li');
+                let location = '';
+                if (issue.line) {
+                    location = `L${issue.line}`;
+                    if (issue.column) location += `:${issue.column}`;
+                    location += ' · ';
+                }
+                item.textContent = location + (issue.message || '');
+                list.appendChild(item);
+            });
+            warning.appendChild(list);
+            bubble.appendChild(warning);
+        }
+
+        row.appendChild(bubble);
+        container.appendChild(row);
         container.scrollTop = container.scrollHeight;
     },
 
@@ -900,100 +995,6 @@ export const admin = {
         } catch (e) {
             console.error(e);
             alert("Error de red al eliminar rol.");
-        }
-    },
-
-    async loadProfilesAdmin() {
-        const token = api.getToken();
-        const container = document.getElementById("admin-profiles-container");
-        if (!container) return;
-        container.innerHTML = `<p class="text-xs opacity-75 col-span-3">Actualizando perfiles...</p>`;
-        try {
-            const res = await fetch('/api/v1/admin/profiles', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                const profiles = data.profiles || [];
-                container.innerHTML = profiles.length ? profiles.map(p => {
-                    const safeProfileJson = JSON.stringify(p).replace(/"/g, '&quot;');
-                    return `
-                    <div class="dynamic-card border rounded-2xl p-5 flex flex-col justify-between shadow-lg">
-                        <div>
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-base">${p.name}</h4>
-                                <span class="text-xs dynamic-card px-2 py-0.5 rounded border font-mono">ID: ${p.id}</span>
-                            </div>
-                            <div class="mb-3">
-                                <span class="text-xs dynamic-accent px-2 py-0.5 rounded font-mono">CODE: ${p.code}</span>
-                            </div>
-                            <p class="text-xs opacity-75 mb-4">${p.description || 'Sin descripción'}</p>
-                        </div>
-                        <div class="flex justify-end space-x-2 pt-3 border-t dynamic-border">
-                            <button data-edit-profile='${safeProfileJson}' class="btn-edit-profile text-xs dynamic-card border px-3 py-1 rounded">Editar</button>
-                            <button data-delete-profile="${p.id}" class="btn-delete-profile text-xs bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 rounded">Eliminar</button>
-                        </div>
-                    </div>
-                `;
-                }).join('') : `<p class="text-xs opacity-75 col-span-3">No hay perfiles registrados.</p>`;
-            } else {
-                container.innerHTML = `<p class="text-xs text-red-400 col-span-3">Error al obtener perfiles del servidor.</p>`;
-            }
-        } catch (err) {
-            console.error(err);
-            container.innerHTML = `<p class="text-xs text-red-400 col-span-3">Error cargando perfiles.</p>`;
-        }
-    },
-
-    openProfileModal(p = null) {
-        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-        setVal('profile-id', p ? p.id : '');
-        setVal('profile-input-name', p ? p.name : '');
-        setVal('profile-input-code', p ? p.code : '');
-        setVal('profile-input-desc', p && p.description ? p.description : '');
-        const titleEl = document.getElementById('modal-profile-title');
-        if (titleEl) titleEl.innerText = p ? 'Editar Perfil' : 'Crear Perfil';
-        ui.toggleModal('modal-profile', true);
-    },
-
-    async saveProfile() {
-        const id = document.getElementById('profile-id')?.value;
-        const name = document.getElementById('profile-input-name')?.value;
-        const code = document.getElementById('profile-input-code')?.value;
-        const description = document.getElementById('profile-input-desc')?.value;
-        const token = api.getToken();
-
-        const method = id ? 'PUT' : 'POST';
-        const url = id ? `/api/v1/admin/profiles/${id}` : '/api/v1/admin/profiles';
-
-        try {
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ code, name, description })
-            });
-
-            if (res.ok) {
-                ui.toggleModal('modal-profile', false);
-                this.loadProfilesAdmin();
-            } else {
-                const err = await res.json();
-                alert("Error: " + (err.detail || "No se pudo guardar el perfil."));
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Error de red al guardar el perfil.");
-        }
-    },
-
-    async deleteProfile(id) {
-        if (!confirm("¿Estás seguro de eliminar este perfil?")) return;
-        const token = api.getToken();
-        try {
-            const res = await fetch(`/api/v1/admin/profiles/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) this.loadProfilesAdmin();
-            else alert("Error al eliminar perfil.");
-        } catch (e) {
-            console.error(e);
-            alert("Error de red al eliminar perfil.");
         }
     },
 
@@ -1312,7 +1313,6 @@ export const admin = {
 
     async loadSystemConfig() {
         try {
-            this.initMobileServerConfig();
             const cfg = await api.getSystemConfig();
             const hostEl = document.getElementById('smtp-host');
             if (hostEl) hostEl.value = cfg.smtp_host || '';
@@ -1793,6 +1793,7 @@ export const admin = {
         }
         if (qrEl && typeof QRCode !== 'undefined') {
             try {
+                qrEl.innerHTML = '';
                 new QRCode(qrEl, {
                     text: configUrl,
                     width: 180,
@@ -1810,13 +1811,13 @@ export const admin = {
         const panel = document.getElementById('adminMobileAccessPanel');
         const chevron = document.getElementById('adminMobileAccessChevron');
         if (toggle && panel) {
-            toggle.addEventListener('click', () => {
+            toggle.onclick = () => {
                 const open = panel.classList.toggle('hidden');
                 if (chevron) {
                     chevron.classList.toggle('fa-chevron-down', open);
                     chevron.classList.toggle('fa-chevron-up', !open);
                 }
-            });
+            };
         }
     },
     async submitAccessRequest() {

@@ -113,6 +113,8 @@ async def notify_job_outcome(
     if status == "succeeded":
         title = f"Trabajo completado: {job_type}"
         body = f"El trabajo {job_type} (ref {ref_id}) finalizó correctamente."
+        if job_type == "tenant_create":
+            body = f"El tenant {ref_id} se creó y provisionó correctamente."
     else:
         title = f"Trabajo fallido: {job_type}"
         body = f"El trabajo {job_type} (ref {ref_id}) falló"
@@ -121,5 +123,12 @@ async def notify_job_outcome(
         body += "."
         if job_type == "backup_import":
             body += " Se revirtió por completo la importación (base de datos e infraestructura)."
-    link = "/?tab=bkp" if job_type == "backup_import" else None
+        elif job_type == "tenant_create":
+            body += " Se revirtió el alta del tenant."
+    if job_type == "backup_import":
+        link = "/?tab=bkp"
+    elif job_type == "tenant_create":
+        link = "/?tab=tenants"
+    else:
+        link = None
     await notify_user(user_id, job_type, title, body, job_id=job_id, link=link)

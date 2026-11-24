@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguridad y accesos · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3"><div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div><div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div></div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html" aria-current="page"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Seguridad</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>RBAC</span><span class="badge badge-emerald">HTTPS</span><span class="badge badge-violet">Specs 004 · 007 · 019</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Seguridad y accesos</h1>
+<p class="text-sm text-slate-300">La autorización combina JWT, perfiles por rol y concesión de tenants en base. El perímetro se cierra con HTTPS, firewall de puertos de lectura y un proxy de tickets que inyecta el scoping.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-user-lock text-sky-400 mr-2" aria-hidden="true"></i>1. Modelo de autorización</h2>
+<pre class="code">identidad:  JWT (sub = username, role, roles[])
+capacidad: verify_profile_access('&lt;code&gt;') desde claims del access token
+datos:     verify_tenant_access(id) consulta user_tenants UNION role_tenants
+tickets:   perfil y tenant se re-resuelven desde la BD al emitir
+admin:     no hay bypass: accede por role_tenants sembradas para el rol admin</pre>
+<div class="danger mt-4"><strong>No hay bypass por rol.</strong> El administrador global ve todos los tenants porque existen filas en <code>role_tenants</code> para el rol <code>admin</code>, no por una condición especial en el código. Quitar esas filas quita el acceso.</div>
+<div class="overflow-x-auto mt-4"><table class="tbl">
+<thead><tr><th>Mecanismo</th><th>Fuente</th><th>Qué controla</th></tr></thead>
+<tbody>
+<tr><td><code>verify_profile_access</code></td><td>Claims JWT</td><td>Permiso para invocar endpoints.</td></tr>
+<tr><td><code>verify_tenant_access</code></td><td>PostgreSQL</td><td>Visibilidad de un tenant.</td></tr>
+<tr><td>UI proxy</td><td>PostgreSQL + ticket</td><td>Qué consola se abre y con qué scoping.</td></tr>
+<tr><td>Aprobaciones</td><td>PostgreSQL</td><td>Alta aditiva de roles y tenants.</td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-certificate text-emerald-300 mr-2" aria-hidden="true"></i>2. Perímetro HTTPS</h2>
+<div class="grid md:grid-cols-2 gap-3 text-xs text-slate-300">
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-emerald mb-2">anomalia_gw</span><p>Uvicorn en <code>8000</code>, sin terminación TLS y con los workers activos. Nginx le reenvía el tráfico en claro; <code>/metrics</code> y <code>/healthz</code> se consultan en ese puerto.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-sky mb-2">anomalia_gw_tls</span><p>Nginx publica <code>80 → 443</code>, termina TLS con un leaf firmado por una CA local privada y expone <code>8443</code> solo a la red de contenedores para Parses. El directorio <code>/opt/anomalia/certs</code> sobrevive al destroy; la CA hay que confiarla en cada cliente.</p></div>
+</div>
+<div class="warn mt-4">Las credenciales nunca se versionan: se referencian por variable de entorno o por archivos locales ignorados. Los respaldos cifran su contenido; las respuestas de configuración SSO no devuelven secretos, solo un indicador de si están configurados.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-fire text-amber-300 mr-2" aria-hidden="true"></i>3. Aislamiento de red y scoping</h2>
+<pre class="code">navegador  --&gt;  gateway HTTPS  --&gt;  proxy de tickets  --&gt;  read_url
+                     |                    |
+                     |                    +-- X-Scope-OrgID / select/&lt;a&gt;:&lt;p&gt;
+                     |                    +-- proyecto de Parses del tenant
+                     +-- firewall bloquea 8401 / 8481 / 8491 / 4040 desde la LAN</pre>
+<p class="text-sm text-slate-300 mt-3">Los valores de AccountID/ProjectID salen de <code>tenant_datasources</code>. El cliente no puede enviarlos: cualquier parámetro de scoping en la URL se elimina antes de reenviar la petición al store.</p>
+<div class="note mt-3">La cookie <code>anomalia_ui</code> no está cifrada, pero es opaca y está ligada a un ticket vigente, con <code>HttpOnly</code>, <code>SameSite=Lax</code> y <code>Secure</code> solo en HTTPS. El canje es de un solo uso; la cookie se reutiliza durante la sesión y se renueva cuando quedan menos de 15 minutos.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-user-check text-violet-300 mr-2" aria-hidden="true"></i>4. Solicitudes y aprobación</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Regla</th><th>Comportamiento</th></tr></thead>
+<tbody>
+<tr><td>Rol <code>admin</code></td><td>No solicitable; se filtra silenciosamente del catálogo.</td></tr>
+<tr><td>Perfil <code>approvers</code></td><td>Puede aprobar o rechazar; nunca su propia solicitud.</td></tr>
+<tr><td>Estados</td><td><code>pending</code>, <code>approved</code>, <code>rejected</code>, <code>cancelled</code>.</td></tr>
+<tr><td>Granted</td><td>Aditive en <code>user_roles</code> y <code>user_tenants</code>; revocar es tarea del ABM.</td></tr>
+<tr><td>bcrypt</td><td>Único hashing válido para contraseñas.</td></tr>
+</tbody>
+</table></div>
+<p class="text-xs text-slate-400 mt-3">Detalle en <a class="inline" href="iam-abm.html">IAM y ABM</a>.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-key text-pink-300 mr-2" aria-hidden="true"></i>5. SSO y datos sensibles</h2>
+<div class="danger">Los Proveedores OIDC se configuran sin exponer <code>client_secret</code> en las respuestas: solo se devuelve <code>has_client_secret</code>. PKCE S256, <code>state</code> y <code>nonce</code> se validan en el callback. Ver <a class="inline" href="sso-oidc.html">SSO / OIDC</a>.</div>
+<p class="text-sm text-slate-300 mt-3">Los tenants internos tienen reglas canónicas inmutables y operaciones destructivas protegidas. Los roles con perfiles sensibles (<code>alerts_manager</code>, <code>infra_manager</code>, <code>tenants_manager</code>, <code>profile_manager</code>) deben asignarse con criterio.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-list-check text-emerald-300 mr-2" aria-hidden="true"></i>Auditoría operativa</h2>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">Verificar que el acceso a un tenant se resuelve en BD, no desde un claim del cliente.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Confirmar que el gateway redirige a HTTPS excepto las rutas exentas.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Revisar que no haya secretos en inventarios, logs ni documentación.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Rotar credenciales de forma controlada y regenerar hashes con bcrypt.</div></div>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>Identidad</span><span>JWT</span></div>
+<div class="kv"><span>Capacidad</span><span>claims</span></div>
+<div class="kv"><span>Tenants</span><span>BD</span></div>
+<div class="kv"><span>Tickets</span><span>BD + cookie</span></div>
+<div class="kv"><span>TLS</span><span>CA local</span></div>
+<div class="kv"><span>Hash</span><span>bcrypt</span></div>
+<div class="kv"><span>Secretos</span><span>nunca versionados</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-link text-emerald-300 mr-2" aria-hidden="true"></i>Relacionado</h3>
+<p class="text-xs text-slate-400"><a class="inline" href="iam-abm.html">IAM</a> · <a class="inline" href="tickets-workflow.html">Tickets</a> · <a class="inline" href="sso-oidc.html">SSO</a> · <a class="inline" href="administracion-infraestructura.html">Infra</a></p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+</body>
+</html>

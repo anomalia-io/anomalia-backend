@@ -39,11 +39,6 @@ class RoleCreateUpdatePayload(BaseModel):
     profiles: Optional[List[str]] = []
     tenants: Optional[List[str]] = []
 
-class ProfileCreateUpdatePayload(BaseModel):
-    code: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-
 class TenantPayload(BaseModel):
     name: str
     type: Optional[str] = "metrics"

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alta y ciclo de vida de tenants · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3"><div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div><div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div></div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html" aria-current="page"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Alta de tenants</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>ABM tenants</span><span class="badge badge-emerald">202 Accepted</span><span class="badge badge-violet">Specs 011 · 012 · 007 · 016</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Alta y ciclo de vida de un tenant</h1>
+<p class="text-sm text-slate-300">El alta es <strong>100% background</strong>, con el mismo patrón del import de backup: la request solo valida y persiste la intención, y un único job orquesta todas las fases. El endpoint responde de inmediato y el operador sigue el avance por sondeo, con reanudación tras recargar la página.</p>
+<div class="note mt-4">Permiso requerido: <code>tenants_manager</code>. La identidad del dueño del job se guarda en <code>job_state.created_by</code> para notificar el desenlace; los jobs internos de sistema llevan <code>created_by = NULL</code> y no notifican.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-plug text-sky-400 mr-2" aria-hidden="true"></i>1. Contrato HTTP</h2>
+<pre class="code">POST /api/v1/admin/tenants
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
+
+{
+  "name": "tenant-ejemplo",
+  "display_name": "Ten Ejemplo",
+  "type": "metrics",
+  "environment": "default",
+  "has_alerts": true,
+  "placement_mode": "auto",
+  "vmauth_placement_mode": "auto"
+}
+
+HTTP/1.1 202 Accepted
+{
+  "status": "accepted",
+  "message": "Creación de tenant en curso",
+  "id": 42,
+  "job_id": "&lt;uuid&gt;"
+}</pre>
+<p class="text-xs text-slate-400 mt-3">No se devuelve 201 y tampoco infraestructura lista en la respuesta. El código <strong>202</strong> es la señal de que el trabajo fue aceptado; el tenant nace en <code>status='provisioning'</code>.</p>
+<div class="danger mt-4"><strong>Corrección importante:</strong> el nombre, el slug, los IDs de cuenta/proyecto, los datasources y el nodo de destino <strong>los decide el worker</strong>, no el cliente. El payload solo expresa intención (<code>auto</code> o valores manuales permitidos).</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-bolt text-amber-300 mr-2" aria-hidden="true"></i>2. El job <code>tenant_create</code></h2>
+<div class="grid md:grid-cols-2 gap-3 text-xs text-slate-300">
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-sky mb-2">Registro</span><p><code>job_state</code> con <code>id</code>, <code>type='tenant_create'</code>, <code>ref_id=tenant_id</code>, <code>status='queued'</code>, <code>phase='init'</code>, <code>progress_pct=0</code> y <code>created_by</code>.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-violet mb-2">Durabilidad</span><p><code>timeout_at</code>, heartbeat y recuperación de huérfanos (spec 016). Si el proceso muere, el job se marca <code>failed</code> y se reintenta/audita según su tipo.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-emerald mb-2">Progreso</span><p><code>phase</code>, <code>progress_pct</code> y <code>steps[]</code> con <code>{name, status, detail?}</code> publicados tras cada fase.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-amber mb-2">NOTIFY</span><p>Los cambios de estado llegan por <code>NOTIFY</code> de PostgreSQL; el sondeo HTTP sigue siendo la fuente de verdad para reconectar.</p></div>
+</div>
+<pre class="code mt-4">GET /api/v1/admin/jobs/{job_id}
+
+{
+  "id": "&lt;uuid&gt;",
+  "type": "tenant_create",
+  "ref_id": 42,
+  "status": "running",
+  "phase": "deploying_vmalert",
+  "progress_pct": 60,
+  "created_by": 7,
+  "steps": [
+    {"name": "assigning_ids", "status": "succeeded"},
+    {"name": "seeding_datasources", "status": "succeeded"},
+    {"name": "auto_placement", "status": "succeeded"},
+    {"name": "activating", "status": "succeeded"},
+    {"name": "deploying_vmalert", "status": "running"}
+  ]
+}
+
+GET /api/v1/admin/jobs?type=tenant_create&amp;limit=20</pre>
+<div class="note mt-4"><strong>Reanudación tras recarga:</strong> la UI no pierde el rastro. Al cargar busca jobs <code>queued</code>/<code>running</code> de este tipo con <code>ref_id</code> del tenant o por <code>created_by</code>, adopta el <code>job_id</code> y continúa el sondeo. El job vive en PostgreSQL, no en la pestaña ni en <code>localStorage</code>.</div>
+<div class="note mt-3"><strong>Notificación al dueño:</strong> al llegar a estado terminal, <code>notify_job_outcome</code> crea una notificación in-app para <code>created_by</code> (y email si hay SMTP configurado). El vencimiento del token del navegador no interrumpe el job.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-list-ol text-violet-300 mr-2" aria-hidden="true"></i>3. Fases del pipeline</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Fase</th><th>Avance</th><th>Qué ocurre</th><th>Fallido</th></tr></thead>
+<tbody>
+<tr><td><code>assigning_ids</code></td><td>15%</td><td>El worker toma <code>nextval</code> de las secuencias y asigna <code>account_id</code> / <code>project_id</code>. Los tenants <code>type='profiles'</code> quedan en NULL.</td><td>Aborta el job.</td></tr>
+<tr><td><code>seeding_datasources</code></td><td>30%</td><td>Siembra <code>tenant_datasources</code> de forma idempotente desde los componentes <code>select</code>. Perfiles usa el datasource Pyroscope.</td><td>Aborta el job.</td></tr>
+<tr><td><code>auto_placement</code></td><td>45%</td><td>Elige nodo vmauth y nodo vmalert con menor carga si el modo es <code>auto</code>; contabiliza el slot del nodo vmauth.</td><td>Aborta el job.</td></tr>
+<tr><td><code>activating</code></td><td>~50%</td><td><strong>Marca <code>status='active'</code> ANTES del deploy de vmalert y de la regeneración de scrapes.</strong> Así el regen ya incluye la ruta nueva y no hace falta un segundo pase.</td><td>Aborta el job.</td></tr>
+<tr><td><code>deploying_vmalert</code></td><td>60%</td><td>Si <code>has_alerts=true</code> y no es <code>profiles</code>: encola el job dependiente <code>vmalert_deploy</code> y espera su resultado (presupuesto 900 s desde <code>started_at</code>).</td><td>Error de fase → rollback.</td></tr>
+<tr><td><code>regenerating_scrapes</code></td><td>65% / 80%</td><td>Sin vmalert se encola directamente <code>vmalert_regen_scrapes</code> (300 s); con vmalert el regen se encadena al deploy. Materializa scrapes de vmagent y rutas de vmauth desde la BD.</td><td>Error de fase → rollback.</td></tr>
+<tr><td><code>provisioning_parses</code></td><td>80%</td><td>Provisión dependiente de Parses: project <code>anomalia-tenant-&lt;slug&gt;</code>, datasources y, solo si es interno, dashboards. Se ejecuta dentro del thread del orquestador para no auto-bloquear el ejecutor serial.</td><td>Propaga el error → rollback.</td></tr>
+<tr><td><code>done</code></td><td>100%</td><td>Job <code>succeeded</code>, tenant operativo y notificación al dueño.</td><td>—</td></tr>
+</tbody>
+</table></div>
+<div class="warn mt-4"><strong>Dependencias, no fuego y olvido:</strong> <code>vmalert_deploy</code>, <code>vmalert_regen_scrapes</code> y la provisión de Parses son fases dependientes: se encolan o ejecutan y se <em>esperan</em> antes de continuar. La espera mide el tiempo desde que el job dependiente arranca, con una gracia separada para el tiempo en cola (spec 016 §2.5).</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-user-shield text-emerald-300 mr-2" aria-hidden="true"></i>4. Concesión de acceso: solo <code>role_tenants</code></h2>
+<pre class="code">INSERT INTO role_tenants (role_id, tenant_id)
+SELECT r.id, &lt;tenant_id&gt;
+FROM roles r
+WHERE r.name = 'admin'
+  AND NOT EXISTS (
+    SELECT 1 FROM role_tenants rt
+    WHERE rt.role_id = r.id AND rt.tenant_id = &lt;tenant_id&gt;
+  );
+
+INSERT INTO role_tenants (role_id, tenant_id)
+SELECT r.id, &lt;tenant_id&gt;
+FROM roles r
+WHERE r.name = 'tenant_manager'
+  AND &lt;environment&gt; IN ('work', 'default')
+  AND NOT EXISTS (
+    SELECT 1 FROM role_tenants rt
+    WHERE rt.role_id = r.id AND rt.tenant_id = &lt;tenant_id&gt;
+  );</pre>
+<div class="danger mt-4"><strong>NUNCA insertar en <code>user_tenants</code> durante el alta.</strong> La concesión automática es para los roles <code>admin</code> y <code>tenant_manager</code>, y se registra únicamente en <code>role_tenants</code>. <code>user_tenants</code> es para asignaciones directas hechas desde el ABM de usuarios o aprobaciones (spec 007: unión <code>user_tenants ∪ role_tenants</code>).</div>
+<p class="text-xs text-slate-400 mt-3">La concesión es <em>best-effort</em>: un fallo no bloquea el alta, pero el access check posterior se resuelve desde la base, así que conviene verificar las filas antes de entregar el tenant.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-network-wired text-sky-400 mr-2" aria-hidden="true"></i>5. Red, puertos y consolas</h2>
+<div class="grid md:grid-cols-2 gap-3 text-xs text-slate-300">
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-sky mb-2">vmalert por tenant</span><p>Unit systemd derivada <code>anomalia-vmalert-&lt;slug&gt;.service</code>. Puerto determinístico <code>8880 + tenant_id</code>; el <code>8880</code> queda reservado a la unit single. Si hay colisión en el nodo, cae al pool por-tenant como fallback.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-emerald mb-2">vmauth</span><p>El regen de scrapes/rutas se materializa con Ansible y <strong>vmauth se recarga o reinicia vía systemd</strong>. La ruta pública del tenant queda resuelta desde la BD; el cliente no elige nodo.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-violet mb-2">Dashboards</span><p><strong>Solo internos.</strong> Los tenants <code>is_internal=TRUE</code> reciben dashboards nativos; un tenant nuevo arranca con project y datasources, <strong>sin dashboards heredados</strong>.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-amber mb-2">Acceso</span><p>HTTPS en el gateway; los puertos de lectura de Victoria están aislados. Las consolas se abren con tickets: ver <a class="inline" href="tickets-workflow.html">tickets-workflow.html</a>.</p></div>
+</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-rotate-left text-rose-300 mr-2" aria-hidden="true"></i>6. Rollback y trazabilidad</h2>
+<p class="text-sm text-slate-300">Ante un error en cualquier fase, <code>_rollback_tenant_create</code> hace limpieza <strong>best-effort</strong> y deja la fila del tenant en <code>status='failed'</code> para trazabilidad (la purga definitiva es una baja explícita).</p>
+<div class="overflow-x-auto mt-3"><table class="tbl">
+<thead><tr><th>Acción</th><th>Modo</th><th>Detalle</th></tr></thead>
+<tbody>
+<tr><td>Liberar slot de vmauth</td><td>Determinista</td><td><code>tenants_count_active = GREATEST(tenants_count_active - 1, 0)</code>.</td></tr>
+<tr><td>Quitar vmalert</td><td>Best-effort</td><td>Encola <code>vmalert_undeploy</code> y espera con timeout acotado; fallo se registra como warning.</td></tr>
+<tr><td>Quitar Parses</td><td>Best-effort</td><td><code>delete_tenant_parses(tenant_id)</code>.</td></tr>
+<tr><td>Limpiar BD</td><td>Determinista</td><td>Borra <code>tenant_datasources</code> y relaciones de acceso; fija <code>status='failed'</code>.</td></tr>
+<tr><td>Auditoría</td><td>Determinista</td><td>Inserta en <code>audit_deletions</code> con <code>outcome='rolled_back'</code> y un <code>challenge_id</code> único.</td></tr>
+</tbody>
+</table></div>
+<div class="danger mt-4">Rollback <strong>best-effort</strong> no significa "borrar el tenant": significa que el tenant queda marcado <code>failed</code> y auditado. No reintentar el alta sobre la misma fila sin revisar primero <code>audit_deletions</code> y el job original.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-list-check text-emerald-300 mr-2" aria-hidden="true"></i>Verificación operativa</h2>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">Confirmar <code>202</code>, <code>id</code> y <code>job_id</code>; nunca esperar infra en la respuesta.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Sondear <code>phase</code>, <code>progress_pct</code> y <code>steps[]</code> hasta <code>succeeded</code> / <code>failed</code>.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">Verificar <code>account_id</code>, <code>project_id</code> y <code>tenant_datasources</code> escritos por el worker.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Confirmar que solo hay filas nuevas en <code>role_tenants</code> y que <code>user_tenants</code> no fue tocado.</div></div>
+<div class="step"><div class="step-n">5</div><div class="text-xs text-slate-300">Comprobar la unit vmalert y el puerto <code>8880 + tenant_id</code> cuando <code>has_alerts</code>.</div></div>
+<div class="step"><div class="step-n">6</div><div class="text-xs text-slate-300">Confirmar la notificación in-app al dueño del job.</div></div>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>Endpoint</span><span>POST /admin/tenants</span></div>
+<div class="kv"><span>Respuesta</span><span>202 + job_id</span></div>
+<div class="kv"><span>Permiso</span><span>tenants_manager</span></div>
+<div class="kv"><span>Tipo de job</span><span>tenant_create</span></div>
+<div class="kv"><span>Dueño</span><span>created_by</span></div>
+<div class="kv"><span>Puerto vmalert</span><span>8880 + tenant_id</span></div>
+<div class="kv"><span>Estado final</span><span>active / failed</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-3"><i class="fa-solid fa-diagram-project text-violet-300 mr-2" aria-hidden="true"></i>Cadena de fases</h3>
+<pre class="code">assigning_ids
+seeding_datasources
+auto_placement
+activating
+deploying_vmalert
+regenerating_scrapes
+provisioning_parses
+done</pre>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-link text-emerald-300 mr-2" aria-hidden="true"></i>Relacionado</h3>
+<p class="text-xs text-slate-400"><a class="inline" href="administracion-infraestructura.html">Infraestructura</a> · <a class="inline" href="alertas-notificaciones.html">Alertas</a> · <a class="inline" href="backup-importacion.html">Import</a> · <a class="inline" href="glosario-faq.html">Glosario</a></p>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-book text-amber-300 mr-2" aria-hidden="true"></i>Specs</h3>
+<p class="text-xs text-slate-400">011 vmalert por tenant · 012 auto-provisioning · 007 acceso HTTPS · 016 ejecutor único y rollback.</p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+</body>
+</html>

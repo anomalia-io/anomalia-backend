@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glosario y FAQ · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3"><div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div><div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div></div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html" aria-current="page"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Glosario y FAQ</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Referencia</span><span class="badge badge-emerald">14 docs</span><span class="badge badge-violet">Correcciones clave</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Glosario y preguntas frecuentes</h1>
+<p class="text-sm text-slate-300">Vocabulario operativo y respuestas cortas a los puntos que más se confunden: scopes, roles, tickets, jobs, puertos y responsabilidades entre backend e infraestructura.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-book text-sky-400 mr-2" aria-hidden="true"></i>Glosario</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Término</th><th>Significado</th></tr></thead>
+<tbody>
+<tr><td><strong>Tenant</strong></td><td>Unidad de aislamiento lógico. Tiene <code>slug</code> inmutable, <code>org_id_upper</code>, tipo, entorno, datasources y estado.</td></tr>
+<tr><td><strong><code>account_id</code> / <code>project_id</code></strong></td><td>Identificadores numéricos para el scoping de Victoria. Los asigna el worker desde secuencias; la UI no los envía.</td></tr>
+<tr><td><strong>Datasource</strong></td><td>Fila de <code>tenant_datasources</code> con <code>read_url</code>, AccountID/ProjectID y el scope que el proxy inyecta.</td></tr>
+<tr><td><strong>Scope</strong></td><td>Parámetro que restringe la consulta: path <code>0:0</code>, headers <code>AccountID</code>/<code>ProjectID</code> o <code>X-Scope-OrgID</code>. El cliente no lo controla.</td></tr>
+<tr><td><strong>Ticket UI</strong></td><td>Token de un solo uso para abrir una consola. Se canjea por una cookie de sesión opaca.</td></tr>
+<tr><td><strong>Cookie <code>anomalia_ui</code></strong></td><td>Sesión reutilizable del proxy: HttpOnly, SameSite=Lax, Secure solo en HTTPS, renovación con &lt;15 min restantes.</td></tr>
+<tr><td><strong>Rol</strong></td><td>Conjunto de permisos verificables desde claims JWT (<code>verify_profile_access</code>).</td></tr>
+<tr><td><strong>Perfil</strong></td><td>Capacidad predefinida por el seed y asignable a roles. <code>/api/v1/admin/profiles</code> es de solo lectura; no es lo mismo que un rol.</td></tr>
+<tr><td><strong><code>user_tenants</code> / <code>role_tenants</code></strong></td><td>Concesión directa y por rol. El acceso efectivo es la unión; el admin usa <code>role_tenants</code>.</td></tr>
+<tr><td><strong><code>access_request</code></strong></td><td>Solicitud de roles/tenants con estado <code>pending</code>, <code>approved</code>, <code>rejected</code> o <code>cancelled</code>.</td></tr>
+<tr><td><strong>Job</strong></td><td>Trabajo duradero en <code>job_state</code> con <code>type</code>, <code>phase</code>, <code>steps[]</code>, <code>progress_pct</code>, <code>created_by</code> y <code>timeout_at</code>.</td></tr>
+<tr><td><strong>NOTIFY</strong></td><td>Señal <code>anomalia_jobs</code> que despierta al ejecutor serial al encolar con <code>enqueue_job_tx</code>.</td></tr>
+<tr><td><strong>Idempotencia</strong></td><td>Repetir una operación no duplica efectos: la misma configuración final, las mismas units y las mismas filas.</td></tr>
+<tr><td><strong>vmalert</strong></td><td>Evaluador de reglas. En modo por-tenant: <code>anomalia-vmalert-&lt;slug&gt;.service</code> en <code>8880 + tenant_id</code>.</td></tr>
+<tr><td><strong>vmagent</strong></td><td>Recolector que recibe los scrapes generados por <code>vmalert_regen_scrapes</code>.</td></tr>
+<tr><td><strong>vmauth</strong></td><td>Router de ingesta por tenant; no es el camino de lectura del proxy.</td></tr>
+<tr><td><strong>Parses</strong></td><td>Perses + datasources del tenant: dashboards, paneles, recursos y snapshot de datos.</td></tr>
+<tr><td><strong>Alertmanager</strong></td><td>Agrega y enruta alertas; el token del webhook se toma de entorno o <code>.secrets/</code>.</td></tr>
+<tr><td><strong>OIDC</strong></td><td>OpenID Connect. Modos: <code>local</code>, <code>local_only</code>, <code>hybrid</code>, <code>oidc_only</code>.</td></tr>
+<tr><td><strong>PKCE / JWKS</strong></td><td>Prueba de clave de código (S256) y conjunto de claves públicas para verificar el ID token.</td></tr>
+<tr><td><strong>Rollback</strong></td><td>Restauración del snapshot y limpieza remota ante fallo de import o creación de tenant.</td></tr>
+<tr><td><strong><code>port_mapping</code></strong></td><td>Reserva transaccional de <code>host_port</code> por instancia/nodo; se borra al dar de baja.</td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-circle-question text-emerald-300 mr-2" aria-hidden="true"></i>FAQ operativa</h2>
+<div class="space-y-3">
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Por qué el admin ve todos los tenants?</h3><p class="text-xs text-slate-300 mt-1">Por <code>role_tenants</code> sembradas para el rol <code>admin</code>, no por un bypass en el código ni por <code>user_tenants</code>.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué responde el alta de tenant?</h3><p class="text-xs text-slate-300 mt-1"><code>202 Accepted + job_id</code>. No es 201 y los IDs de datasource/puerto se asignan en el worker, nunca en la request.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Se conceden tenants con <code>user_tenants</code> al crear?</h3><p class="text-xs text-slate-300 mt-1">No. El pipeline usa solo <code>role_tenants</code> para <code>admin</code> y <code>tenant_manager</code> en <code>work</code>/<code>default</code>.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿PROFILES tiene vmalert?</h3><p class="text-xs text-slate-300 mt-1">No. <code>has_alerts=false</code>, sin unit ni puerto; los tenants internos sí consultan métricas del store <code>0:0</code>.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué puerto usa cada tenant?</h3><p class="text-xs text-slate-300 mt-1"><code>8880 + tenant_id</code>. El 8880 queda para la unit single; hay fallback defensivo al pool si hay colisión.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué healthcheck se usa para vmalert?</h3><p class="text-xs text-slate-300 mt-1"><code>GET /health</code> y <code>POST /-/reload</code>. <code>/-/health</code> es de vmauth/vmagent y devuelve 400 en vmalert.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Las lecturas pasan por vmauth?</h3><p class="text-xs text-slate-300 mt-1">No. El proxy verificó permisos y habla directo con el nodo <em>select</em>, inyectando el scope.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿El ticket es la sesión?</h3><p class="text-xs text-slate-300 mt-1">No. El ticket es de un solo uso en el canje; la cookie es la sesión y se reutiliza hasta expirar.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Puedo elegir el rol <code>admin</code> en una solicitud?</h3><p class="text-xs text-slate-300 mt-1">No. Se filtra silenciosamente del catálogo y nadie aprueba su propia solicitud.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué hashing de password es válido?</h3><p class="text-xs text-slate-300 mt-1">Solo bcrypt. La confirmación de contraseña es opcional.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿SSO asigna roles automáticamente?</h3><p class="text-xs text-slate-300 mt-1">No por defecto. Solo si llegan claims válidos que coincidan con roles/tenants existentes; alta aditiva.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿El backup incluye IPs de infraestructura?</h3><p class="text-xs text-slate-300 mt-1">No. Se cifra configuración; la infra se reconcilia en cada clúster. El import es un único job con rollback.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Por qué un redeploy no revive una unit?</h3><p class="text-xs text-slate-300 mt-1">El handler solo reinicia si cambia el template. Cada role cierra con <code>systemd: state=started, enabled=yes</code> para converger estado.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Dónde viven los playbooks que ejecuta el worker?</h3><p class="text-xs text-slate-300 mt-1">En <code>/app/playbooks</code>, copia de los playbooks raíz. <code>roles/backend/src/</code> es legado muerto.</p></div>
+</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-triangle-exclamation text-amber-300 mr-2" aria-hidden="true"></i>Errores comunes</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Síntoma</th><th>Causa probable</th><th>Acción</th></tr></thead>
+<tbody>
+<tr><td><code>400 unsupported path requested</code></td><td>Uso de <code>/-/health</code> en vmalert o barras en <code>0/0</code>.</td><td><code>/health</code> y <code>0:0</code>.</td></tr>
+<tr><td><code>409</code> al importar</td><td>Ya hay <code>backup_import</code> en <code>queued</code>/<code>running</code>.</td><td>Consultar <code>/admin/jobs?type=backup_import&amp;limit=1</code>.</td></tr>
+<tr><td><code>UNREACHABLE!</code> del worker</td><td>Contraseña OS desincronizada de <code>infrastructure_nodes</code>.</td><td>Redeploy para la post-task de resincronización.</td></tr>
+<tr><td>Unit en <code>failed</code> tras boot</td><td>Bind a IP antes de red.</td><td>Revisar <code>network-online</code> y <code>StartLimitIntervalSec=0</code>.</td></tr>
+<tr><td>UI sin botón OIDC</td><td><code>auth_mode</code> sin OIDC o proveedor no configurado.</td><td><code>GET /settings/auth</code> y <code>/settings/sso</code>.</td></tr>
+</tbody>
+</table></div>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>Docs relacionadas</span><span>14</span></div>
+<div class="kv"><span>Ids tenant</span><span>worker</span></div>
+<div class="kv"><span>Admin access</span><span>role_tenants</span></div>
+<div class="kv"><span>vmalert port</span><span>8880 + id</span></div>
+<div class="kv"><span>Health vmalert</span><span>/health</span></div>
+<div class="kv"><span>Lecturas</span><span>select directo</span></div>
+<div class="kv"><span>Import</span><span>job único</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-link text-emerald-300 mr-2" aria-hidden="true"></i>Relacionado</h3>
+<p class="text-xs text-slate-400"><a class="inline" href="index.html">Índice</a> · <a class="inline" href="tenants-workflow.html">Tenants</a> · <a class="inline" href="seguridad-accesos.html">Seguridad</a> · <a class="inline" href="administracion-infraestructura.html">Infra</a></p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+</body>
+</html>

@@ -9,7 +9,7 @@ El backend expone una API RESTful construida con **FastAPI**, protegida mediante
 | Prefijo | Módulo | Descripción |
 | :--- | :--- | :--- |
 | `/api/v1/auth` | Autenticación | Login (`login`/`ui-login`), usuario actual y tema (`theme`). |
-| `/api/v1/admin` | Administración | Gestión de usuarios, roles, perfiles y tenants (`tenants_manager`). |
+| `/api/v1/admin` | Administración | Gestión de usuarios, roles y tenants; operaciones de reglas/Alertmanager con `alerts_manager`. Catálogo de perfiles en solo lectura. |
 | `/api/infrastructure` | Infraestructura | Control y estado de nodos de infraestructura (`infrastructure_nodes`). |
 | `/api/v1/tenants` | Tenants | Endpoints puente para consulta de tenants autorizados (`my-tenants`). |
 | `/api/v1/approvals` | Aprobaciones | Solicitud y aprobación de acceso a roles/tenants (perfil `approvers`, spec 019). |
@@ -22,6 +22,21 @@ El backend expone una API RESTful construida con **FastAPI**, protegida mediante
 | `/api/v1/webhook` | Ingesta | Webhook de Alertmanager → `alert_history` + encolado de análisis IA (spec 018). |
 | `/api/v1/settings` | Configuración de Auth | Modo de autenticación (`auth_mode`) y configuración SSO/OIDC (spec 020). |
 | `/api/v1/oidc` | OIDC / SSO | Login, callback, discovery y CRUD de proveedores OIDC (spec 020). |
+
+---
+
+## Perfiles, roles y acceso por tenant
+
+Los perfiles están predefinidos por el seed y se asignan a roles; no son editables ni creables
+desde la API. `GET /api/v1/admin/profiles` es de **solo lectura** y existe para poblar los
+checkboxes de perfiles al configurar roles. El nombre correcto del permiso es
+`profile_manager`.
+
+No hay un perfil `alertmanager`: el perfil canónico para reglas vmalert y Alertmanager es
+`alerts_manager`. Ese perfil habilita los scopes `vmalert` (por tenant) y
+`alertmanager_global` (sin tenant). El rol `alerts_manager` recibe tenants asignados
+explícitamente: las operaciones tenant-scoped exigen el perfil **y** acceso a ese tenant
+(`user_tenants ∪ role_tenants`), revalidado en base.
 
 ---
 
@@ -164,7 +179,7 @@ Todos requieren rol **`admin`**. La service account se guarda en `system_setting
 * **Payload:** `{ "severity": "high" }` (valores: `critical`, `high`, `medium`, `low`, `info`).
 * **Descripción:** Fija la criticidad a mano (`severity_source='manual'`), prevaleciendo sobre reanálisis IA. Devuelve `{ok: true, id, severity, severity_source}`.
 
-* **Destinatarios por tenant (perfil `alerts_manager`):**
+* **Destinatarios por tenant (perfil `alerts_manager` y acceso al tenant):**
   `GET/POST /api/v1/admin/alerts/tenants/{tenant_id}/recipients` y
   `PUT/DELETE /api/v1/admin/alerts/tenants/{tenant_id}/recipients/{recipient_id}`.
   El email se valida; el alta es upsert por `(tenant_id, email)`.
@@ -181,7 +196,7 @@ Todos requieren rol **`admin`**. La service account se guarda en `system_setting
 
 ### 1. Sincronización y Materialización de Reglas vmalert
 * **Ruta:** `POST /api/v1/admin/tenants/{tenant_id}/vmalert/sync_rules`
-* **Permisos Requeridos:** `alerts_manager`
+* **Permisos Requeridos:** perfil `alerts_manager` y acceso al tenant (`user_tenants ∪ role_tenants`).
 * **Descripción:** Encola un trabajo asíncrono (`vmalert_sync_rules`) que lee el campo `rules_yaml` desde la base de datos (fuente de verdad), lo materializa en la ruta del nodo correspondiente (`rules_path`) y ejecuta un `/-/reload` HTTP sobre la instancia vmalert.
 * **Respuesta Exitosa (`202 Accepted`):**
   ```json
@@ -201,15 +216,23 @@ Todos requieren rol **`admin`**. La service account se guarda en `system_setting
     "tenant_id": 1,
     "messages": [
       { "role": "user", "content": "¿Cómo escribo una regla PromQL para detectar uso de CPU superior al 90%?" }
-    ]
+    ],
+    "rules_yaml": "groups:\n  - name: ejemplo\n    rules:\n      - alert: Ejemplo\n        expr: up == 0"
   }
   ```
-* **Notas:** `vmalert_rules` **requiere** `tenant_id` (responde `400` si falta) y valida el acceso al tenant (`403`). El backend inyecta contexto vivo en el prompt (reglas del tenant + estado de vmalert para `vmalert_rules`; URLs de lectura de los datasources para `victoria_metrics_query`/`victoria_logs_query`).
+* **Notas:** `vmalert_rules` **requiere** `tenant_id` (responde `400` si falta) y valida el acceso al tenant (`403`). El campo opcional `rules_yaml` envía el borrador actual del editor en cada pregunta y tiene prioridad sobre el YAML guardado en la BD.
+ El backend valida sintaxis, indentación y estructura mínima de vmalert antes de llamar al modelo; los errores se devuelven como avisos en `yaml_validation` (no como `400`) para que el asistente los explique.
 * **Respuesta Exitosa (`200 OK`):**
   ```json
   {
-    "response": "Para detectar un uso de CPU superior al 90%, puedes utilizar la siguiente regla en vmalert:\n\n- alert: HighCpuUsage\n  expr: sum(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance) < 0.1\n  for: 5m...",
-    "context": "vmalert_rules"
+    "response": "El bloque 'rules' está desindentado; debe estar al mismo nivel que 'name'...",
+    "context": "vmalert_rules",
+    "yaml_validation": {
+      "valid": false,
+      "issues": [
+        { "line": 3, "column": 4, "message": "El grupo 0 no es un mapping; revisá la indentación.", "severity": "error" }
+      ]
+    }
   }
   ```
 
@@ -246,7 +269,7 @@ Todos requieren rol **`admin`**. La service account se guarda en `system_setting
 * **Ruta:** `GET|POST|PUT|PATCH|DELETE|OPTIONS /ui/{ticket}/{path}` — proxy autenticado hacia las consolas de VictoriaMetrics/Traces/Logs/Pyroscope/Parses.
 
 ### 7. Ciclo de vida de vmalert y Parses (spec 011/012)
-Bajo `/api/v1/admin/tenants/{tenant_id}` (perfil `alerts_manager`):
+Bajo `/api/v1/admin/tenants/{tenant_id}` (perfil `alerts_manager` **y** acceso al tenant):
 * `GET|PUT .../vmalert/rules` — leer/editar `rules_yaml` (fuente de verdad).
 * `POST .../vmalert/reload`, `.../vmalert/deploy`, `.../vmalert/undeploy`, `.../vmalert/redeploy` — despliegue de la instancia vmalert por tenant.
 * `POST .../parses/provision` — (re)aprovisiona project/datasources de Parses del tenant.

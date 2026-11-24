@@ -143,6 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (sidebarToggle) sidebarToggle.classList.remove("hidden");
         ui.buildAdminSidebarMenu(state.currentUserRoles, state.currentUserProfiles);
         admin.loadAll();
+        admin.initMobileServerConfig();
     }
 
     try {
@@ -187,7 +188,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (tabName === 'users') admin.loadUsers();
             if (tabName === 'tenants') admin.loadTenantsAdmin();
             if (tabName === 'roles') admin.loadRolesAdmin();
-            if (tabName === 'profiles') admin.loadProfilesAdmin();
             if (tabName === 'infra') admin.loadInfraNodes();
             if (tabName === 'general') admin.loadSystemConfig();
             if (tabName === 'bkp') admin.loadSystemConfig();
@@ -287,12 +287,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById('btn-open-user-modal')?.addEventListener('click', () => admin.openUserModal());
     document.getElementById('btn-open-tenant-modal')?.addEventListener('click', () => admin.openTenantModal());
     document.getElementById('btn-open-role-modal')?.addEventListener('click', () => admin.openRoleModal());
-    document.getElementById('btn-open-profile-modal')?.addEventListener('click', () => admin.openProfileModal());
 
     document.getElementById('btn-refresh-users')?.addEventListener('click', () => admin.loadUsers());
     document.getElementById('btn-refresh-tenants')?.addEventListener('click', () => admin.loadTenantsAdmin());
     document.getElementById('btn-refresh-roles')?.addEventListener('click', () => admin.loadRolesAdmin());
-    document.getElementById('btn-refresh-profiles')?.addEventListener('click', () => admin.loadProfilesAdmin());
     document.getElementById('btn-refresh-infra')?.addEventListener('click', () => admin.loadInfraNodes());
 
     document.getElementById('btn-save-user')?.addEventListener('click', () => admin.saveUser());
@@ -306,7 +304,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById('btn-vmalert-rules-save')?.addEventListener('click', () => admin.saveVmalertRules(false));
     document.getElementById('btn-vmalert-rules-reload')?.addEventListener('click', () => admin.saveVmalertRules(true));
     document.getElementById('btn-save-role')?.addEventListener('click', () => admin.saveRole());
-    document.getElementById('btn-save-profile')?.addEventListener('click', () => admin.saveProfile());
     document.getElementById('btn-save-infra')?.addEventListener('click', () => admin.saveInfraNode());
     document.getElementById('btn-save-ai')?.addEventListener('click', () => admin.saveAIConfig());
     document.getElementById('btn-test-ai')?.addEventListener('click', () => admin.testAIProvider());
@@ -376,13 +373,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (e.target.closest('.btn-delete-role')) {
             admin.deleteRole(e.target.closest('.btn-delete-role').getAttribute('data-delete-role'));
         }
-        if (e.target.closest('.btn-edit-profile')) {
-            const data = JSON.parse(e.target.closest('.btn-edit-profile').getAttribute('data-edit-profile'));
-            admin.openProfileModal(data);
-        }
-        if (e.target.closest('.btn-delete-profile')) {
-            admin.deleteProfile(e.target.closest('.btn-delete-profile').getAttribute('data-delete-profile'));
-        }
         if (e.target.closest('.btn-edit-infra')) {
             const data = JSON.parse(e.target.closest('.btn-edit-infra').getAttribute('data-edit-infra'));
             admin.openInfraModal(data);
@@ -409,234 +399,41 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    // ============ AI Assistant Floating Panel ============
     (function() {
-        const toggleBtn = document.getElementById('ai-assistant-toggle');
-        const panel = document.getElementById('ai-assistant-panel');
-        const closeBtn = document.getElementById('ai-assistant-close');
-        const sendBtn = document.getElementById('ai-assistant-send');
-        const input = document.getElementById('ai-assistant-input');
-        const messagesContainer = document.getElementById('ai-assistant-messages');
-        const contextEl = document.getElementById('ai-assistant-context');
-        const hintEl = document.getElementById('ai-assistant-hint');
-        const contextBtn = document.getElementById('ai-assistant-context-btn');
-        const badge = document.getElementById('ai-assistant-badge');
+        const dropdown = document.getElementById('docs-dropdown');
+        const toggle = document.getElementById('docs-toggle');
+        const menu = document.getElementById('docs-menu');
 
-        if (!toggleBtn || !panel) return;
+        if (!dropdown || !toggle || !menu) return;
 
-        let isOpen = false;
-        let currentContext = 'general';
-        let unreadCount = 0;
-
-        const CONTEXTS = {
-            general: { label: 'Asistente General', hint: 'Pregunta lo que necesites', aiContext: 'parses_query' },
-            metrics: { label: 'VictoriaMetrics', hint: 'PromQL, métricas, dashboards', aiContext: 'victoria_metrics_query' },
-            logs: { label: 'VictoriaLogs', hint: 'LogsQL, búsqueda de logs', aiContext: 'victoria_logs_query' },
-            traces: { label: 'VictoriaTraces', hint: 'Búsqueda de trazas, latencia', aiContext: 'victoria_traces_query' },
-            profiling: { label: 'Pyroscope', hint: 'Profiling CPU/memoria, flamegraphs', aiContext: 'pyroscope_query' },
-            dashboards: { label: 'Parses/Dashboards', hint: 'Dashboards, paneles, variables', aiContext: 'parses_query' },
-            alerts: { label: 'Alertas', hint: 'Alertas activas y bitácora enriquecida por IA', aiContext: 'vmalert_rules' },
-        };
-
-        let currentTenantId = null;
-
-        function openPanel() {
-            panel.classList.remove('hidden');
-            panel.classList.add('flex');
-            toggleBtn.classList.add('hidden');
-            document.getElementById('ai-assistant-input')?.focus();
+        function closeMenu() {
+            menu.classList.add('hidden');
+            toggle.setAttribute('aria-expanded', 'false');
         }
 
-        function closePanel() {
-            panel.classList.add('hidden');
-            panel.classList.remove('flex');
-            toggleBtn.classList.remove('hidden');
-        }
-
-        function setContext(ctx) {
-            currentContext = ctx;
-            const c = CONTEXTS[ctx] || CONTEXTS.general;
-            const contextEl = document.getElementById('ai-assistant-context');
-            const hintEl = document.getElementById('ai-assistant-hint');
-            if (contextEl) contextEl.textContent = c.label;
-            if (hintEl) hintEl.textContent = c.hint;
-        }
-
-        function addMessage(role, text) {
-            const container = document.getElementById('ai-assistant-messages');
-            if (!container) return;
-            const div = document.createElement('div');
-            div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
-            div.innerHTML = role === 'user'
-                ? `<div class="bg-primary/20 text-primary rounded-xl px-3 py-2 max-w-[85%] text-xs">${text}</div>`
-                : `<div class="dynamic-card border rounded-xl px-3 py-2 max-w-[85%] text-xs">${text}</div>`;
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('ai-assistant-input');
-            const text = input?.value?.trim();
-            if (!text) return;
-
-            addMessage('user', text);
-            input.value = '';
-            input.disabled = true;
-            const sendBtn = document.getElementById('ai-assistant-send');
-            if (sendBtn) sendBtn.disabled = true;
-
-            try {
-                const response = await api.aiChat({
-                    context: CONTEXTS[currentContext]?.aiContext || 'parses_query',
-                    messages: [{ role: 'user', content: text }],
-                    tenant_id: currentTenantId
-                });
-                addMessage('assistant', response.response);
-            } catch (err) {
-                addMessage('assistant', `Error: ${err.message || err}`);
-            } finally {
-                if (input) {
-                    input.disabled = false;
-                    input.focus();
-                }
-                if (sendBtn) sendBtn.disabled = false;
-            }
-        }
-
-        // Toggle button from header nav only
-        const openAssistant = () => {
-            const panel = document.getElementById('ai-assistant-panel');
-            if (panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                panel.classList.add('flex');
-                document.getElementById('ai-assistant-input')?.focus();
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (toggle.getAttribute('aria-expanded') === 'true') {
+                closeMenu();
             } else {
-                panel.classList.add('hidden');
-                panel.classList.remove('flex');
-            }
-        };
-
-        document.getElementById('ai-assistant-toggle-nav')?.addEventListener('click', openAssistant);
-
-        // Close button
-        document.getElementById('ai-assistant-close')?.addEventListener('click', () => {
-            const panel = document.getElementById('ai-assistant-panel');
-            panel.classList.add('hidden');
-            panel.classList.remove('flex');
-        });
-
-        // Minimize and Maximize controls
-        const minimizeBtn = document.getElementById('ai-assistant-minimize');
-        const maximizeBtn = document.getElementById('ai-assistant-maximize');
-        const assistantCard = document.getElementById('ai-assistant-card');
-        const assistantBody = document.getElementById('ai-assistant-body');
-
-        let isMinimized = false;
-        let isMaximized = false;
-
-        minimizeBtn?.addEventListener('click', () => {
-            isMinimized = !isMinimized;
-            if (isMinimized) {
-                assistantBody.style.display = 'none';
-                assistantCard.style.height = 'auto';
-                minimizeBtn.innerHTML = '<i class="fa-solid fa-window-maximize"></i>';
-            } else {
-                assistantBody.style.display = 'flex';
-                assistantCard.style.height = '480px';
-                minimizeBtn.innerHTML = '<i class="fa-solid fa-window-minimize"></i>';
+                menu.classList.remove('hidden');
+                toggle.setAttribute('aria-expanded', 'true');
             }
         });
 
-        maximizeBtn?.addEventListener('click', () => {
-            isMaximized = !isMaximized;
-            if (isMaximized) {
-                assistantCard.style.width = '90vw';
-                assistantCard.style.height = '90vh';
-                assistantCard.style.maxWidth = '1200px';
-                maximizeBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
-            } else {
-                assistantCard.style.width = '380px';
-                assistantCard.style.height = isMinimized ? 'auto' : '480px';
-                assistantCard.style.maxWidth = 'none';
-                maximizeBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) closeMenu();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+                closeMenu();
+                toggle.focus();
             }
         });
 
-        // Send button
-        document.getElementById('ai-assistant-send')?.addEventListener('click', sendMessage);
-
-        // Enter key
-        document.getElementById('ai-assistant-input')?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // Context switcher (simplified - could be expanded with dropdown)
-        document.getElementById('ai-assistant-context-btn')?.addEventListener('click', () => {
-            const contexts = Object.keys(CONTEXTS);
-            const currentIdx = contexts.indexOf(currentContext);
-            const nextIdx = (currentIdx + 1) % contexts.length;
-            setContext(contexts[nextIdx]);
-        });
-
-        // Enter key to send
-        document.getElementById('ai-assistant-input')?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // Listen for tenant selection to update context
-        document.addEventListener('tenant-selected', (e) => {
-            currentTenantId = e.detail.tenantId;
-            const badge = document.getElementById('ai-assistant-badge');
-            if (badge) {
-                badge.textContent = '●';
-                badge.classList.remove('hidden');
-            }
-        });
-
-        // Listen for console tab changes to auto-switch context
-        document.addEventListener('tab-changed', (e) => {
-            const tab = e.detail.tab;
-            if (CONTEXTS[tab]) {
-                setContext(tab);
-            }
-        });
-
-        // Initialize
-        setContext('general');
-
-        // Always show toggle button for all authenticated users
-        const toggleBtnEl = document.getElementById('ai-assistant-toggle');
-        if (toggleBtnEl) toggleBtnEl.style.display = 'flex';
-
-        // ============ GitBook Documentation Modal & Toggles ============
-        const gitbookToggleNav = document.getElementById('gitbook-toggle-nav');
-        const gitbookModal = document.getElementById('gitbook-modal');
-        const gitbookClose = document.getElementById('gitbook-modal-close');
-
-        gitbookToggleNav?.addEventListener('click', () => {
-            if (gitbookModal) {
-                gitbookModal.classList.remove('hidden');
-                gitbookModal.classList.add('flex');
-            }
-        });
-
-        gitbookClose?.addEventListener('click', () => {
-            gitbookModal?.classList.add('hidden');
-            gitbookModal?.classList.remove('flex');
-        });
-
-        gitbookModal?.addEventListener('click', (e) => {
-            if (e.target === gitbookModal) {
-                gitbookModal.classList.add('hidden');
-                gitbookModal.classList.remove('flex');
-            }
+        menu.addEventListener('click', (e) => {
+            if (e.target.closest('a[role="menuitem"]')) closeMenu();
         });
     })();
-    // ============ End AI Assistant ============
 });

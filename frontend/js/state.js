@@ -33,7 +33,10 @@ const JOB_TERMINAL_STATES = new Set(['succeeded', 'failed', 'cancelled']);
 const JOB_POLL_INTERVAL_MS = 1500;
 // El alta de un tenant puede tardar varios minutos: despliegue de vmalert
 // (hasta ~15 min) + provisión de Parses. Se alinea con el presupuesto del worker.
-const JOB_POLL_TIMEOUT_MS = 20 * 60 * 1000;
+const JOB_POLL_TIMEOUTS_MS = {
+    tenant_create: 20 * 60 * 1000,
+    default: 20 * 60 * 1000
+};
 
 /**
  * Consulta el estado de un job hasta que llega a un estado terminal.
@@ -49,7 +52,9 @@ const JOB_POLL_TIMEOUT_MS = 20 * 60 * 1000;
  * @returns {Promise<object>} el último estado conocido del job
  */
 export async function pollJob(jobId, onUpdate, options = {}) {
-    const timeoutMs = options.timeoutMs || JOB_POLL_TIMEOUT_MS;
+    const timeoutMs = options.timeoutMs
+        || JOB_POLL_TIMEOUTS_MS[state.jobs[jobId]?.type]
+        || JOB_POLL_TIMEOUTS_MS.default;
     const deadline = Date.now() + timeoutMs;
 
     while (Date.now() < deadline) {

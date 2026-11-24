@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 import json
@@ -13,11 +13,11 @@ import socket
 import re
 import yaml
 from ..database import get_db_connection
+from ..workers.base import enqueue_job_tx
 from ..models import (
     UserCreateRequest, 
     UserUpdateRequest, 
     RoleCreateUpdatePayload, 
-    ProfileCreateUpdatePayload, 
     TenantPayload,
     AuthNodePayload,
     DeleteTenantConfirm1,
@@ -27,11 +27,13 @@ from ..models import (
     AlertRecipientCreate,
     AlertRecipientUpdate
 )
-from ..auth import verify_admin_token, hash_password, get_current_user_profiles, verify_profile_access, is_valid_email_format
+from ..auth import verify_admin_token, hash_password, get_current_user_profiles, verify_profile_access, verify_tenant_access, is_valid_email_format
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Administration"])
 
 logger = logging.getLogger(__name__)
+
+TENANT_CREATE_JOB_TIMEOUT_SECONDS = 20 * 60
 
 
 def slugify_name(name: str) -> str:
@@ -53,6 +55,19 @@ def ensure_slug_unique(cursor, base_slug: str) -> str:
             return slug
         i += 1
         slug = f"{base_slug}-{i}"
+
+
+def _resolve_user_id(cursor, username: Optional[str]) -> Optional[int]:
+    if not username:
+        return None
+    cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+def _verify_tenant_access_from_path(request: Request, user: dict = Depends(get_current_user_profiles)) -> dict:
+    tenant_id = int(request.path_params["tenant_id"])
+    return verify_tenant_access(tenant_id)(user)
 
 # Componentes que ansible-infra/install-binaries.yml sabe actualizar. Cada valor
 # debe coincidir con el 'servicio' aceptado por el playbook; 'parses' y 'backend'
@@ -376,7 +391,10 @@ def get_alerts_tenants(mine: bool = False, wait_deployed: bool = False, payload:
     where_clause = "WHERE t.deleted_at IS NULL AND t.type <> 'profiles'"
     params = []
 
-    if mine and username:
+    all_user_roles = ([payload["role"]] if payload.get("role") else []) + payload.get("roles", [])
+    is_admin = "admin" in all_user_roles
+
+    if mine or not is_admin:
         where_clause += """
             AND t.id IN (
                 SELECT ut.tenant_id FROM user_tenants ut JOIN users u ON u.id = ut.user_id WHERE u.username = %s
@@ -453,7 +471,7 @@ def _assert_tenant_exists(cursor, tenant_id: int) -> None:
 
 
 @router.get("/alerts/tenants/{tenant_id}/recipients",
-            dependencies=[Depends(verify_profile_access("alerts_manager"))])
+            dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def list_alert_recipients(tenant_id: int):
     """Lista los correos destinatarios de alertas del tenant (spec 018)."""
     conn = get_db_connection()
@@ -480,7 +498,7 @@ def list_alert_recipients(tenant_id: int):
 
 
 @router.post("/alerts/tenants/{tenant_id}/recipients",
-             dependencies=[Depends(verify_profile_access("alerts_manager"))])
+             dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def add_alert_recipient(tenant_id: int, body: AlertRecipientCreate):
     """Añade un correo destinatario de alertas al tenant (spec 018)."""
     email = (body.email or "").strip()
@@ -508,7 +526,7 @@ def add_alert_recipient(tenant_id: int, body: AlertRecipientCreate):
 
 
 @router.put("/alerts/tenants/{tenant_id}/recipients/{recipient_id}",
-            dependencies=[Depends(verify_profile_access("alerts_manager"))])
+            dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def update_alert_recipient(tenant_id: int, recipient_id: int, body: AlertRecipientUpdate):
     """Actualiza correo/etiqueta/estado de un destinatario (spec 018)."""
     email = None
@@ -552,7 +570,7 @@ def update_alert_recipient(tenant_id: int, recipient_id: int, body: AlertRecipie
 
 
 @router.delete("/alerts/tenants/{tenant_id}/recipients/{recipient_id}",
-               dependencies=[Depends(verify_profile_access("alerts_manager"))])
+               dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def delete_alert_recipient(tenant_id: int, recipient_id: int):
     """Elimina un destinatario de alertas del tenant (spec 018)."""
     conn = get_db_connection()
@@ -572,11 +590,15 @@ def delete_alert_recipient(tenant_id: int, recipient_id: int):
         conn.close()
 
 
-@router.post("/tenants", dependencies=[Depends(verify_profile_access("tenants_manager"))])
-def create_tenant(payload: TenantPayload):
+@router.post("/tenants")
+def create_tenant(payload: TenantPayload, admin: dict = Depends(verify_profile_access("tenants_manager"))):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        created_by = _resolve_user_id(cursor, admin.get("sub") or admin.get("username"))
+        if created_by is None:
+            raise HTTPException(status_code=401, detail="No se pudo resolver la identidad del usuario.")
+
         base_slug = slugify_name(payload.display_name or payload.name)
         slug = ensure_slug_unique(cursor, base_slug)
         org_id_upper = org_id_upper_from_slug(slug)
@@ -608,30 +630,36 @@ def create_tenant(payload: TenantPayload):
             (payload.name, slug, display_name, tenant_type, payload.account_id, payload.project_id, payload.environment, payload.port, payload.description, has_alerts, placement_mode, vmalert_node_id, payload.vmalert_port, org_id_upper, "provisioning", vmauth_node_id, vmauth_placement_mode)
         )
         tenant_id = cursor.fetchone()[0]
-        conn.commit()
 
         # Auto-grant access to the newly created tenant to the admin role (and tenant_manager if applicable)
         # This keeps parity with the seed logic (role_tenants) and prevents permission issues for admins.
-        try:
-            cursor.execute(
-                "INSERT INTO role_tenants (role_id, tenant_id) SELECT r.id, %s FROM roles r WHERE r.name = 'admin' AND NOT EXISTS (SELECT 1 FROM role_tenants rt WHERE rt.role_id = r.id AND rt.tenant_id = %s);",
-                (tenant_id, tenant_id)
-            )
-            env = payload.environment or 'default'
-            cursor.execute(
-                "INSERT INTO role_tenants (role_id, tenant_id) SELECT r.id, %s FROM roles r WHERE r.name = 'tenant_manager' AND (%s IN ('work','default')) AND NOT EXISTS (SELECT 1 FROM role_tenants rt WHERE rt.role_id = r.id AND rt.tenant_id = %s);",
-                (tenant_id, env, tenant_id)
-            )
-            conn.commit()
-        except Exception:
-            # Granting is best-effort; don't block tenant creation if it fails
-            conn.rollback()
-            # Re-fetch connection is not necessary as we just committed - continue
+        cursor.execute(
+            "INSERT INTO role_tenants (role_id, tenant_id) SELECT r.id, %s FROM roles r WHERE r.name = 'admin' AND NOT EXISTS (SELECT 1 FROM role_tenants rt WHERE rt.role_id = r.id AND rt.tenant_id = %s);",
+            (tenant_id, tenant_id)
+        )
+        env = payload.environment or 'default'
+        cursor.execute(
+            "INSERT INTO role_tenants (role_id, tenant_id) SELECT r.id, %s FROM roles r WHERE r.name = 'tenant_manager' AND (%s IN ('work','default')) AND NOT EXISTS (SELECT 1 FROM role_tenants rt WHERE rt.role_id = r.id AND rt.tenant_id = %s);",
+            (tenant_id, env, tenant_id)
+        )
 
-        job_id = str(uuid.uuid4())
-        cursor.execute("""INSERT INTO job_state (id, type, ref_id, status, phase, progress_pct, created_by) VALUES (%s, %s, %s, %s, %s, %s, %s);""", (job_id, "tenant_create", tenant_id, "queued", "init", 0, None))
+        payload_dict = payload.dict()
+        payload_dict.update({"slug": slug, "display_name": display_name, "org_id_upper": org_id_upper})
+        job_id = enqueue_job_tx(
+            cursor,
+            "tenant_create",
+            tenant_id,
+            payload_dict,
+            created_by=created_by,
+            timeout_seconds=TENANT_CREATE_JOB_TIMEOUT_SECONDS,
+        )
         conn.commit()
-        return {"status": "accepted", "message": "Creación de tenant en curso", "id": tenant_id, "job_id": job_id}
+        return JSONResponse(status_code=202, content={
+            "ok": True,
+            "message": "Creación de tenant en curso",
+            "id": tenant_id,
+            "job_id": job_id,
+        })
     except HTTPException:
         # Los HTTPException de este bloque ya llevan su status y su detalle.
         # Sin esta rama el 'except Exception' generico los reenvuelve en un 400
@@ -848,52 +876,6 @@ def get_profiles_admin():
         rows = cursor.fetchall()
         profiles = [{"id": p[0], "code": p[1], "name": p[2], "description": p[3]} for p in rows]
         return {"profiles": profiles}
-    finally:
-        cursor.close()
-        conn.close()
-
-@router.post("/profiles", dependencies=[Depends(verify_profile_access("profile_manager"))])
-def create_profile(payload: ProfileCreateUpdatePayload):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        code = payload.code if payload.code else payload.name.lower().replace(" ", "_")
-        cursor.execute("INSERT INTO profiles (code, name, description) VALUES (%s, %s, %s) RETURNING id;", (code, payload.name, payload.description))
-        profile_id = cursor.fetchone()[0]
-        conn.commit()
-        return {"status": "success", "message": "Perfil creado correctamente", "id": profile_id}
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
-
-@router.put("/profiles/{profile_id}", dependencies=[Depends(verify_profile_access("profile_manager"))])
-def update_profile(profile_id: int, payload: ProfileCreateUpdatePayload):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        code = payload.code if payload.code else payload.name.lower().replace(" ", "_")
-        cursor.execute("UPDATE profiles SET code = %s, name = %s, description = %s WHERE id = %s;", (code, payload.name, payload.description, profile_id))
-        conn.commit()
-        return {"status": "success", "message": "Perfil actualizado correctamente"}
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
-
-@router.delete("/profiles/{profile_id}", dependencies=[Depends(verify_profile_access("profile_manager"))])
-def delete_profile(profile_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DELETE FROM role_profiles WHERE profile_id = %s;", (profile_id,))
-        cursor.execute("DELETE FROM profiles WHERE id = %s;", (profile_id,))
-        conn.commit()
-        return {"status": "success", "message": "Perfil eliminado correctamente"}
     finally:
         cursor.close()
         conn.close()
@@ -1237,7 +1219,7 @@ def get_job(job_id: str):
         cursor.close()
         conn.close()
 
-@router.get("/tenants/{tenant_id}/vmalert/rules", dependencies=[Depends(verify_profile_access("alerts_manager"))])
+@router.get("/tenants/{tenant_id}/vmalert/rules", dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def get_vmalert_rules(tenant_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1258,7 +1240,7 @@ def get_vmalert_rules(tenant_id: int):
         cursor.close()
         conn.close()
 
-@router.put("/tenants/{tenant_id}/vmalert/rules", dependencies=[Depends(verify_profile_access("alerts_manager"))])
+@router.put("/tenants/{tenant_id}/vmalert/rules", dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def put_vmalert_rules(tenant_id: int, payload: VMAlerterRulesPut):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1291,7 +1273,7 @@ def put_vmalert_rules(tenant_id: int, payload: VMAlerterRulesPut):
         cursor.close()
         conn.close()
 
-@router.post("/tenants/{tenant_id}/vmalert/sync_rules", dependencies=[Depends(verify_profile_access("alerts_manager"))])
+@router.post("/tenants/{tenant_id}/vmalert/sync_rules", dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def sync_vmalert_rules(tenant_id: int):
     """Materializa las reglas guardadas en la BD hacia el nodo y recarga vmalert (job)."""
     conn = get_db_connection()
@@ -1315,7 +1297,7 @@ def sync_vmalert_rules(tenant_id: int):
         cursor.close()
         conn.close()
 
-@router.post("/tenants/{tenant_id}/vmalert/reload", dependencies=[Depends(verify_profile_access("alerts_manager"))])
+@router.post("/tenants/{tenant_id}/vmalert/reload", dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def reload_vmalert(tenant_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1341,7 +1323,7 @@ def provision_parses(tenant_id: int):
         cursor.close()
         conn.close()
 
-@router.post("/tenants/{tenant_id}/vmalert/deploy", dependencies=[Depends(verify_profile_access("alerts_manager"))])
+@router.post("/tenants/{tenant_id}/vmalert/deploy", dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def deploy_vmalert(tenant_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1355,7 +1337,7 @@ def deploy_vmalert(tenant_id: int):
         cursor.close()
         conn.close()
 
-@router.post("/tenants/{tenant_id}/vmalert/undeploy", dependencies=[Depends(verify_profile_access("alerts_manager"))])
+@router.post("/tenants/{tenant_id}/vmalert/undeploy", dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def undeploy_vmalert(tenant_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1369,7 +1351,7 @@ def undeploy_vmalert(tenant_id: int):
         cursor.close()
         conn.close()
 
-@router.post("/tenants/{tenant_id}/vmalert/redeploy", dependencies=[Depends(verify_profile_access("alerts_manager"))])
+@router.post("/tenants/{tenant_id}/vmalert/redeploy", dependencies=[Depends(verify_profile_access("alerts_manager")), Depends(_verify_tenant_access_from_path)])
 def redeploy_vmalert(tenant_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()

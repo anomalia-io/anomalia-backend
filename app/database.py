@@ -146,7 +146,7 @@ def _init_db_ddl(conn, cursor, hash_password_func):
             placement_mode VARCHAR(10) DEFAULT 'manual' CHECK (placement_mode IN ('manual','auto')),
             vmauth_node_id INTEGER,
             vmauth_placement_mode VARCHAR(10) DEFAULT 'manual' CHECK (vmauth_placement_mode IN ('manual','auto')),
-            status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('provisioning','active','deleting','error','deleted_cleanup')),
+            status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('provisioning','active','deleting','failed','error','deleted_cleanup')),
             org_id_upper VARCHAR(100) UNIQUE,
             is_audit BOOLEAN DEFAULT FALSE,
             is_internal BOOLEAN DEFAULT FALSE,
@@ -466,9 +466,11 @@ def _init_db_ddl(conn, cursor, hash_password_func):
 
     # spec 018: push móvil (FCM). La configuración vive solo en la BD, nunca en
     # el repositorio (constitución §4). Sin credenciales el envío es best-effort.
-    cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN DEFAULT TRUE")
+    cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN DEFAULT FALSE")
+    cursor.execute("ALTER TABLE system_settings ALTER COLUMN push_enabled SET DEFAULT FALSE")
     cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS fcm_project_id VARCHAR(255) DEFAULT ''")
     cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS fcm_service_account_json TEXT DEFAULT ''")
+    cursor.execute("UPDATE system_settings SET push_enabled = FALSE WHERE fcm_service_account_json IS NULL OR fcm_service_account_json = ''")
 
     # spec 020: autenticación OIDC habilitable/deshabilitable y modos de login.
     cursor.execute("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS auth_mode VARCHAR(20) NOT NULL DEFAULT 'hybrid'")
@@ -658,7 +660,9 @@ def _init_db_ddl(conn, cursor, hash_password_func):
         ('tenant_manager', 'Gestor de Tenants'),
         ('infra_manager', 'Gestor de Infraestructura'),
         ('user_manager', 'Gestor de Usuarios'),
-        ('role_manager', 'Gestor de Roles')
+        ('role_manager', 'Gestor de Roles'),
+        ('approvers', 'Gestión de aprobaciones del sistema'),
+        ('alerts_manager', 'Gestión de alertas por tenant')
         ON CONFLICT (name) DO NOTHING;
     """)
 
@@ -674,8 +678,21 @@ def _init_db_ddl(conn, cursor, hash_password_func):
         ('access_Continuous_Profiling', 'Profiling Profile', 'Perfil para profiling continuo'),
         ('access_alerts', 'Alerts Profile', 'Perfil de visualización de alertas'),
         ('tenants_manager', 'Tenants Manager Profile', 'Gestión de tenants y namespaces'),
-        ('infra_manager', 'Infra Management Profile', 'Gestión de nodos de infraestructura y ruteadores')
+        ('infra_manager', 'Infra Management Profile', 'Gestión de nodos de infraestructura y ruteadores'),
+        ('access_dasboards', 'Dashboards Profile', 'Perfil para abrir los dashboards del tenant en Parses'),
+        ('alerts_manager', 'Alerts Manager Profile', 'Gestión de alertas y reglas por tenant'),
+        ('approvers', 'Approvers Profile', 'Gestión de aprobaciones del sistema'),
+        ('audit', 'Audit Profile', 'Perfil para auditoría y revisión de registros')
         ON CONFLICT (code) DO NOTHING;
+    """)
+
+    cursor.execute("""
+        INSERT INTO role_profiles (role_id, profile_id)
+        SELECT r.id, p.id FROM roles r, profiles p
+        WHERE r.name = 'alerts_manager' AND p.code = 'alerts_manager'
+          AND NOT EXISTS (
+              SELECT 1 FROM role_profiles rp WHERE rp.role_id = r.id AND rp.profile_id = p.id
+          );
     """)
 
     cursor.execute("SELECT COUNT(*) FROM user_roles;")

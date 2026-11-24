@@ -36,7 +36,8 @@ GEMINI_MODEL_FALLBACK: List[str] = [
     "gemini-2.0-flash",
 ]
 
-AI_TIMEOUT_SECONDS = 45
+AI_TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "120"))
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "384"))
 
 # spec 018: reintentos inline acotados ante fallos transitorios del proveedor.
 AI_MAX_ATTEMPTS = 3
@@ -247,7 +248,7 @@ class OllamaProvider(BaseAIProvider):
                     "model": self.model,
                     "prompt": prompt,
                     "stream": False,
-                    "options": {"temperature": 0.2},
+                    "options": {"temperature": 0.2, "num_predict": OLLAMA_NUM_PREDICT},
                 },
                 timeout=AI_TIMEOUT_SECONDS,
                 # Pasa la URL para que el bypass de hosts internos aplique

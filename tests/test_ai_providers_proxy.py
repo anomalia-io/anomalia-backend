@@ -43,6 +43,26 @@ def test_ollama_passes_url_to_proxy_helper(monkeypatch):
     assert captured["proxies"] is None
 
 
+def test_ollama_sends_configured_timeout_and_num_predict(monkeypatch):
+    captured = {}
+
+    def fake_post(endpoint, **kwargs):
+        captured["endpoint"] = endpoint
+        captured.update(kwargs)
+        return _FakeResponse()
+
+    monkeypatch.setattr(aip, "get_requests_proxies", lambda url=None: None)
+    monkeypatch.setattr(aip.requests, "post", fake_post)
+    monkeypatch.setattr(aip, "AI_TIMEOUT_SECONDS", 120)
+    monkeypatch.setattr(aip, "OLLAMA_NUM_PREDICT", 384)
+
+    provider = OllamaProvider(host="http://anomalia_ollama:11434", model="llama3.2:1b")
+    assert provider.generate("hola") == "ok"
+    assert captured["endpoint"] == "http://anomalia_ollama:11434/api/generate"
+    assert captured["timeout"] == 120
+    assert captured["json"]["options"] == {"temperature": 0.2, "num_predict": 384}
+
+
 def test_zen_passes_external_url(monkeypatch):
     calls = {"args": []}
 

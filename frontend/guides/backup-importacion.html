@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backup e importación · Anomalía · Guía operativa</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+:root{color-scheme:dark}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% -10%,rgba(56,189,248,.14),transparent 42%),radial-gradient(circle at 88% 0%,rgba(168,85,247,.12),transparent 38%),#070b14;color:#e2e8f0}
+.glass-card{background:linear-gradient(145deg,rgba(30,41,59,.74),rgba(15,23,42,.8));border:1px solid rgba(148,163,184,.16);box-shadow:0 18px 48px rgba(2,6,23,.45);backdrop-filter:blur(14px);border-radius:18px}
+.brand-mark{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#7c3aed);color:#fff;font-size:18px;box-shadow:0 8px 24px rgba(14,165,233,.35)}
+.nav-link{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:7px 11px;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;border:1px solid transparent;transition:.18s}
+.nav-link:hover{color:#e0f2fe;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.22)}
+.nav-link[aria-current="page"]{color:#e0f2fe;background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.38)}
+.crumb{color:#64748b;font-size:12px}
+.crumb a{color:#7dd3fc;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid}
+.badge-sky{color:#7dd3fc;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35)}
+.badge-emerald{color:#86efac;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.32)}
+.badge-violet{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.32)}
+.badge-amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.32)}
+.badge-rose{color:#fda4af;background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.32)}
+.code{margin:0;background:#050914;border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px 16px;overflow:auto;color:#cbd5e1;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;tab-size:2}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(148,163,184,.2)}
+.tbl td{padding:10px 12px;border-top:1px solid rgba(148,163,184,.1);vertical-align:top;color:#cbd5e1}
+.tbl tr:hover td{background:rgba(56,189,248,.04)}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed rgba(148,163,184,.14)}
+.step:last-child{border-bottom:0}
+.step-n{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:11px;font-weight:800}
+.note,.warn,.danger{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.note{background:rgba(56,189,248,.08);border-left:3px solid #38bdf8;color:#bae6fd}
+.warn{background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;color:#fde68a}
+.danger{background:rgba(244,63,94,.08);border-left:3px solid #f43f5e;color:#fecdd3}
+.inspector{position:sticky;top:96px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(148,163,184,.14);font-size:12px}
+.kv span:first-child{color:#94a3b8}
+.kv span:last-child{color:#e2e8f0;text-align:right;font-weight:600}
+section{margin-bottom:22px}
+h2{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;color:#e2e8f0}
+p{line-height:1.7}
+footer{border-top:1px solid rgba(148,163,184,.12);color:#64748b;font-size:12px}
+a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1023px){.inspector{position:static}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-slate-700/40 bg-slate-950/70 backdrop-blur">
+<div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3"><div class="brand-mark"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div><div><div class="text-sm font-extrabold tracking-widest text-white">ANOMALÍA</div><div class="text-xs text-slate-400">Guía operativa</div></div></div>
+<div class="hidden sm:flex items-center gap-2 text-xs text-slate-400"><i class="fa-solid fa-shield-halved text-sky-400" aria-hidden="true"></i><span>Uso interno · sin secretos</span></div>
+</div>
+</header>
+<nav class="border-b border-slate-700/40 bg-slate-950/40" aria-label="Documentación">
+<div class="mx-auto max-w-7xl px-4 py-2 flex gap-1 overflow-x-auto">
+<a class="nav-link" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i>Inicio</a>
+<a class="nav-link" href="tenants-workflow.html"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Tenants</a>
+<a class="nav-link" href="iam-abm.html"><i class="fa-solid fa-users-gear" aria-hidden="true"></i>IAM y ABM</a>
+<a class="nav-link" href="tickets-workflow.html"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Tickets UI</a>
+<a class="nav-link" href="inicio-rapido.html"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Inicio rápido</a>
+<a class="nav-link" href="arquitectura-general.html"><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Arquitectura</a>
+<a class="nav-link" href="consolas-observabilidad.html"><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Consolas</a>
+<a class="nav-link" href="dashboards-parses.html"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Dashboards</a>
+<a class="nav-link" href="alertas-notificaciones.html"><i class="fa-solid fa-bell" aria-hidden="true"></i>Alertas</a>
+<a class="nav-link" href="seguridad-accesos.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Seguridad</a>
+<a class="nav-link" href="backup-importacion.html" aria-current="page"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup e import</a>
+<a class="nav-link" href="sso-oidc.html"><i class="fa-solid fa-key" aria-hidden="true"></i>SSO / OIDC</a>
+<a class="nav-link" href="administracion-infraestructura.html"><i class="fa-solid fa-server" aria-hidden="true"></i>Infraestructura</a>
+<a class="nav-link" href="glosario-faq.html"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>Glosario y FAQ</a>
+</div>
+</nav>
+<main class="mx-auto max-w-7xl px-4 py-8">
+<div class="crumb mb-6"><a href="index.html">Inicio</a> <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Guía operativa <i class="fa-solid fa-chevron-right mx-2 text-[9px]" aria-hidden="true"></i> Backup e import</div>
+<div class="grid lg:grid-cols-[minmax(0,1fr)_310px] gap-6">
+<article>
+<section class="glass-card p-6">
+<div class="flex flex-wrap items-center gap-2 mb-3"><span class="badge badge-sky"><i class="fa-solid fa-database" aria-hidden="true"></i>Backup</span><span class="badge badge-emerald">202 + job_id</span><span class="badge badge-violet">Specs 014 · 015 · 016</span></div>
+<h1 class="text-2xl font-extrabold text-white mb-3">Backup e importación entre clústeres</h1>
+<p class="text-sm text-slate-300">El backup captura <strong>solo configuración</strong> cifrada. El import es un único job duradero con snapshot y rollback total de base de datos e infraestructura. La infraestructura no viaja en el archivo: cada clúster la reconcilia con sus propios nodos.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-file-export text-sky-400 mr-2" aria-hidden="true"></i>1. Exportación</h2>
+<pre class="code">GET /api/v1/system/backup/export?password=&lt;password&gt;
+
+{
+  "version": 1,
+  "salt": "&lt;base64&gt;",
+  "payload": "&lt;ciphertext base64&gt;"
+}</pre>
+<p class="text-sm text-slate-300 mt-3">Cifrado con <strong>Fernet</strong>; la clave se deriva con <strong>PBKDF2-SHA256</strong> (100.000 iteraciones y salt aleatorio). La contraseña nunca se guarda en el archivo ni en el servidor.</p>
+<div class="overflow-x-auto mt-4"><table class="tbl">
+<thead><tr><th>Incluidas</th><th>Excluidas</th></tr></thead>
+<tbody>
+<tr><td><code>users</code>, <code>roles</code>, <code>profiles</code></td><td><code>ui_tickets</code>, <code>job_state</code></td></tr>
+<tr><td><code>user_roles</code>, <code>role_profiles</code></td><td><code>alert_history</code>, <code>port_mapping</code></td></tr>
+<tr><td><code>user_tenants</code>, <code>role_tenants</code></td><td><code>audit_deletions</code></td></tr>
+<tr><td><code>tenants</code>, <code>tenant_datasources</code></td><td><code>infrastructure_nodes</code></td></tr>
+<tr><td><code>ai_settings</code>, <code>oidc_providers</code>, <code>system_settings</code></td><td><code>tenant_vmalert_instances</code></td></tr>
+</tbody>
+</table></div>
+<div class="warn mt-4">Los <code>password_hash</code> se restauran tal cual (ya hasheados con bcrypt). Los datos operativos y la infraestructura quedan fuera: cada clúster gestiona la suya mediante deploy.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-file-import text-emerald-300 mr-2" aria-hidden="true"></i>2. Import: un solo job</h2>
+<pre class="code">POST /api/v1/system/backup/import
+Content-Type: multipart/form-data
+
+file:     &lt;archivo cifrado&gt;
+password: &lt;password&gt;
+
+HTTP/1.1 202 Accepted
+{
+  "ok": true,
+  "message": "Backup importado. Reconciliando infraestructura de 3 tenant(s)…",
+  "tenants_count": 3,
+  "skipped": 1,
+  "job_id": "&lt;uuid&gt;"
+}</pre>
+<div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">Parse, decrypt y validación. Si falla: <code>400</code> y ningún cambio.</div></div>
+<div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Guard: si ya hay <code>backup_import</code> <code>queued</code>/<code>running</code> → <code>409</code>.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">En una transacción: snapshot de <code>BACKUP_TABLES</code> en <code>backup_import_state</code>, upsert por PK, <code>_fix_sequences</code> y plan de reconciliación con auto-placement.</div></div>
+<div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Se encola <strong>un único job</strong> <code>backup_import</code> con <code>created_by</code> del usuario y <code>timeout_at</code>. Commit y respuesta 202.</div></div>
+<div class="note mt-4">El upsert no destruye: los registros existentes ausentes del backup no se borran. Solo se insertan columnas que realmente existen en la tabla (validación con <code>information_schema</code>), lo que evita inyección SQL desde el archivo.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-shuffle text-violet-300 mr-2" aria-hidden="true"></i>3. Desacople de nodos y reconciliación</h2>
+<pre class="code">_detach_tenant_node_refs  (al importar)
+  vmalert_node_id   -&gt; NULL
+  vmauth_node_id    -&gt; NULL
+  instance_id       -&gt; NULL
+  vmalert_port      -&gt; NULL
+  placement_mode    -&gt; 'auto'
+
+_job backup_import_
+  vmalert_redeploy       encolado y esperado (900 s desde started_at)
+  vmalert_regen_scrapes  encolado y esperado (300 s)
+  parses_provision       directo en el hilo del orquestador
+  steps[] y progress_pct publicados en job_state</pre>
+<div class="danger mt-4"><code>parses_provision</code> se ejecuta directo, no se encola: el ejecutor es serial y encolarlo lo pondría en la misma cola que el job que lo espera (deadlock). Los tenants internos se omiten del plan porque ya existen y no requieren reconciliación.</div>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-rotate-left text-rose-300 mr-2" aria-hidden="true"></i>4. Rollback total</h2>
+<div class="overflow-x-auto"><table class="tbl">
+<thead><tr><th>Orden</th><th>Acción</th><th>Modo</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Para cada tenant nuevo: <code>vmalert_undeploy</code> y <code>delete_tenant_parses</code>.</td><td>Best-effort, antes de tocar la BD</td></tr>
+<tr><td>2</td><td><code>restore_import_snapshot(job_id)</code>: borra PKs introducidas y re-upserta el snapshot.</td><td>Transaccional</td></tr>
+<tr><td>3</td><td><code>vmalert_regen_scrapes</code> global para retirar rutas huérfanas.</td><td>Determinista</td></tr>
+</tbody>
+</table></div>
+<p class="text-sm text-slate-300 mt-3">Un <code>backup_import</code> huérfano (proceso muerto a mitad) ejecuta el mismo rollback antes de marcarse <code>failed</code>. Si vence <code>timeout_at</code> también dispara rollback. El job sobrevive al vencimiento del token del navegador.</p>
+</section>
+<section class="glass-card p-6">
+<h2 class="mb-3"><i class="fa-solid fa-rotate text-amber-300 mr-2" aria-hidden="true"></i>5. Seguimiento y reconexión</h2>
+<pre class="code">GET /api/v1/admin/jobs/{job_id}
+{
+  "type": "backup_import",
+  "status": "running",
+  "phase": "vmalert_redeploy",
+  "progress_pct": 45,
+  "steps": [
+    {"name": "vmalert_redeploy", "status": "running"},
+    {"name": "parses_provision", "status": "pending"}
+  ]
+}
+
+GET /api/v1/admin/jobs?type=backup_import&amp;limit=1</pre>
+<p class="text-xs text-slate-400 mt-3">La última ruta permite reengancharse al import tras recargar la página o vencer el sondeo. Al terminar se borra la fila de <code>backup_import_state</code> y se emite la notificación al dueño.</p>
+</section>
+</article>
+<aside class="inspector space-y-5">
+<div class="glass-card p-5">
+<div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
+<div class="kv"><span>Cifrado</span><span>Fernet + PBKDF2</span></div>
+<div class="kv"><span>Job</span><span>backup_import</span></div>
+<div class="kv"><span>Respuesta</span><span>202 + job_id</span></div>
+<div class="kv"><span>Conflicto</span><span>409</span></div>
+<div class="kv"><span>Snapshot</span><span>backup_import_state</span></div>
+<div class="kv"><span>Rollback</span><span>BD + remoto</span></div>
+<div class="kv"><span>Infra en backup</span><span>No</span></div>
+</div>
+<div class="glass-card p-5">
+<h3 class="mb-2"><i class="fa-solid fa-link text-emerald-300 mr-2" aria-hidden="true"></i>Relacionado</h3>
+<p class="text-xs text-slate-400"><a class="inline" href="tenants-workflow.html">Alta de tenants</a> · <a class="inline" href="arquitectura-general.html">Ejecutor de jobs</a> · <a class="inline" href="alertas-notificaciones.html">Notificaciones</a></p>
+</div>
+</aside>
+</div>
+</main>
+<footer class="py-6"><div class="mx-auto max-w-7xl px-4 flex flex-wrap justify-between gap-3"><span>Anomalía · Documentación operativa</span><span><a class="inline" href="index.html">Volver al inicio</a></span></div></footer>
+</body>
+</html>

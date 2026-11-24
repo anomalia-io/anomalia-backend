@@ -88,4 +88,5 @@ docker run -p 8000:8000 anomalia-backend
 
 ## 📄 Licencia
 
-[Apache-2.0](./LICENSE)
+- Código: [Apache-2.0](./LICENSE)
+- Documentación: [CC BY-SA 4.0](./LICENSE-DOCS)
