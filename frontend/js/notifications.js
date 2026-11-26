@@ -34,16 +34,27 @@ function renderList(items) {
         return;
     }
     list.innerHTML = items.map((n) => {
+        const kind = String(n.type || '').toLowerCase();
+        const isAlert = kind.includes('alert');
+        const isResolved = kind.includes('resolved');
+        const kindBadge = isAlert
+            ? `<span class="inline-block px-2 py-1 rounded text-[10px] font-semibold uppercase ${
+                isResolved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+            }">${isResolved ? 'Resuelta' : 'Alerta'}</span>`
+            : '';
         const unreadDot = n.is_read ? '' : '<span class="inline-block w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0"></span>';
         const when = n.created_at ? new Date(n.created_at).toLocaleString() : '';
-        const body = n.body ? `<p class="opacity-70 text-[11px] mt-0.5">${esc(n.body)}</p>` : '';
+        const body = n.body ? `<p class="opacity-70 text-[11px] mt-1 whitespace-pre-wrap break-words">${esc(n.body)}</p>` : '';
         const cls = n.is_read ? 'opacity-70' : '';
-        return `<button data-notif-id="${n.id}" data-notif-link="${esc(n.link || '')}" class="w-full text-left px-2 py-2 rounded-lg hover:opacity-90 transition flex gap-2 ${cls}">
+        return `<button data-notif-id="${n.id}" data-notif-link="${esc(n.link || '')}" class="w-full text-left dynamic-card border rounded-xl px-3 py-2 hover:opacity-90 transition flex gap-2 ${cls}">
             ${unreadDot}
-            <span class="flex-1">
-                <span class="block text-xs font-medium">${esc(n.title)}</span>
+            <span class="flex-1 space-y-1">
+                <span class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-medium">${esc(n.title)}</span>
+                    ${kindBadge}
+                </span>
                 ${body}
-                <span class="block text-[10px] opacity-50 mt-0.5">${esc(when)}</span>
+                <span class="block text-[10px] opacity-50">${esc(when)}</span>
             </span>
         </button>`;
     }).join('');

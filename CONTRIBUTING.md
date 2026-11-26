@@ -13,6 +13,12 @@ Todo cambio en el backend de Anomalia debe seguir el protocolo **Specs-Anchored 
    - `specs/018-alert-ai-analysis-and-delivery.md` - Análisis IA y entrega multi-canal
    - `specs/004-rbac-and-security.md` - RBAC y endpoints protegidos
    - `specs/017-notifications.md` - Notificaciones al usuario
+   - `specs/005-dynamic-infra-provisioning.md` - Aprovisionamiento dinámico de infraestructura
+   - `specs/011-tenant-vmalert-per-tenant.md` - vmalert por tenant
+   - `specs/012-multitenant-vmalert-and-auto-provisioning.md` - Auto-provisioning multitenant
+   - `specs/013-deployment-topology-and-idempotency.md` - Topología de despliegue e idempotencia
+   - `specs/015-cluster-migration-import.md` - Migración entre clústeres
+   - `specs/016-single-job-executor-and-import-rollback.md` - Ejecutor único y rollback de import
 
 3. **Verificar `constitution.md`** - Principios rectores del proyecto
 

@@ -12,6 +12,7 @@ import psycopg2
 import socket
 import re
 import yaml
+from ..alert_silences import planned_vmalert_silences
 from ..database import get_db_connection
 from ..workers.base import enqueue_job_tx
 from ..models import (
@@ -246,10 +247,22 @@ def get_tenants_admin():
         # spec 011: la UI necesita slug (paso 2 del hard-delete) y el estado de
         # la instancia vmalert para mostrar la consola del tenant.
         cursor.execute(
-            """SELECT id, name, type, account_id, project_id, environment, port, description,
-                      slug, display_name, org_id_upper, status, instance_id, vmalert_node_id,
-                      vmalert_port, has_alerts, placement_mode, is_internal, vmauth_node_id, vmauth_placement_mode
-               FROM tenants ORDER BY id ASC;"""
+            """SELECT t.id, t.name, t.type, t.account_id, t.project_id, t.environment, t.port, t.description,
+                      t.slug, t.display_name, t.org_id_upper, t.status, t.instance_id, t.vmalert_node_id,
+                      t.vmalert_port, t.has_alerts, t.placement_mode, t.is_internal, t.vmauth_node_id, t.vmauth_placement_mode,
+                      EXISTS (SELECT 1 FROM tenant_vmalert_instances i
+                              WHERE i.tenant_id = t.id AND i.status = 'deployed') AS vmalert_deployed,
+                      j.status AS job_status, j.phase AS job_phase, j.progress_pct AS job_progress
+               FROM tenants t
+               LEFT JOIN LATERAL (
+                   SELECT status, phase, progress_pct
+                   FROM job_state
+                   WHERE ref_id = t.id
+                     AND type IN ('tenant_create', 'vmalert_deploy', 'vmalert_redeploy', 'vmalert_undeploy')
+                   ORDER BY created_at DESC
+                   LIMIT 1
+               ) j ON TRUE
+               ORDER BY t.id ASC;"""
         )
         rows = cursor.fetchall()
 
@@ -297,7 +310,10 @@ def get_tenants_admin():
                 "status": r[11], "instance_id": r[12], "vmalert_node_id": r[13],
                 "vmalert_port": r[14], "has_alerts": r[15], "placement_mode": r[16],
                 "is_internal": r[17], "vmauth_node_id": r[18], "vmauth_placement_mode": r[19],
-                "vmauth_ingest_url": ingest_url
+                "vmauth_ingest_url": ingest_url,
+                "vmalert_deployed": r[20],
+                "job_status": r[21], "job_phase": r[22], "job_progress": r[23],
+                "ready": r[11] == 'active'
             })
         return {"tenants": tenants}
     finally:
@@ -1036,6 +1052,26 @@ def run_infra_ansible_update(node_id: int):
             ),
         )
 
+    silence_targets: list[int] = []
+    if component == 'vmalert':
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """SELECT t.id
+                   FROM tenant_vmalert_instances tvi
+                   JOIN tenants t ON t.id = tvi.tenant_id
+                   WHERE tvi.instance_id = %s
+                     AND tvi.status = 'deployed'
+                     AND t.status IN ('active', 'provisioning')
+                   ORDER BY t.id""",
+                (node_id,),
+            )
+            silence_targets = [row[0] for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+            conn.close()
+
     extra_vars: dict[str, object] = {
         "ansible_user": admin_user,
         "servicio": component,
@@ -1066,32 +1102,36 @@ def run_infra_ansible_update(node_id: int):
             node_id, component, target_ip, admin_user,
         )
 
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd="/app/playbooks",
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-        except subprocess.TimeoutExpired:
+        with planned_vmalert_silences(
+            silence_targets,
+            f"infra_update:{node_id}:{component}",
+        ):
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd="/app/playbooks",
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+            except subprocess.TimeoutExpired:
+                logger.error(
+                    "Timeout de install-binaries.yml nodo=%s componente=%s", node_id, component
+                )
+                raise HTTPException(status_code=504, detail="El playbook excedió el tiempo límite de ejecución (Timeout).")
+
+            if result.returncode == 0:
+                logger.info("Nodo %s (%s) actualizado correctamente", node_id, component)
+                return {"status": "success", "message": "Playbook ejecutado exitosamente OK.", "stdout": result.stdout}
+
+            error_details = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+            # El detalle va en el body y también al log del contenedor: sin esto el
+            # fallo quedaba invisible salvo por un 500 genérico en el frontend.
             logger.error(
-                "Timeout de install-binaries.yml nodo=%s componente=%s", node_id, component
+                "install-binaries.yml fallo nodo=%s componente=%s rc=%s\n%s",
+                node_id, component, result.returncode, error_details,
             )
-            raise HTTPException(status_code=504, detail="El playbook excedió el tiempo límite de ejecución (Timeout).")
-
-        if result.returncode == 0:
-            logger.info("Nodo %s (%s) actualizado correctamente", node_id, component)
-            return {"status": "success", "message": "Playbook ejecutado exitosamente OK.", "stdout": result.stdout}
-
-        error_details = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-        # El detalle va en el body y también al log del contenedor: sin esto el
-        # fallo quedaba invisible salvo por un 500 genérico en el frontend.
-        logger.error(
-            "install-binaries.yml fallo nodo=%s componente=%s rc=%s\n%s",
-            node_id, component, result.returncode, error_details,
-        )
-        raise HTTPException(status_code=500, detail=error_details)
+            raise HTTPException(status_code=500, detail=error_details)
     finally:
         shutil.rmtree(secret_dir, ignore_errors=True)
 

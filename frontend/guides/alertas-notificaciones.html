@@ -90,7 +90,7 @@ a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
 <section class="glass-card p-6">
 <h2 class="mb-3"><i class="fa-solid fa-bell text-sky-400 mr-2" aria-hidden="true"></i>1. vmalert por tenant</h2>
 <div class="grid md:grid-cols-2 gap-3 text-xs text-slate-300">
-<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-sky mb-2">Instancia 1:1</span><p>Unit derivada <code>anomalia-vmalert-&lt;slug&gt;.service</code>, puerto <code>8880 + tenant_id</code>. El <code>8880</code> pertenece a la unit single. Los tenants <code>type='profiles'</code> no llevan vmalert.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-sky mb-2">Instancia 1:1</span><p>Unit derivada <code>anomalia-vmalert-&lt;slug&gt;.service</code>. El puerto se asigna en remoto con <code>allocate-vmalert-port.yml</code> y se persiste tras el healthcheck. Los tenants <code>type='profiles'</code> no llevan vmalert.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-emerald mb-2">Reglas</span><p>La BD es la fuente de verdad: <code>rules_yaml</code> se materializa en <code>/etc/anomalia/vmalert/&lt;slug&gt;/alert_rules.yml</code> y se recarga. No usar <code>GET /-/health</code> para vmalert: responde 400.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-violet mb-2">Internal rules</span><p>Los tenants internos tienen reglas canónicas en <code>app/internal_rules/</code>. Se pisan en cada deploy y no se pueden editar: <code>PUT .../vmalert/rules</code> responde <code>409</code>.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-3"><span class="badge badge-amber mb-2">Recarga</span><p><code>vmalert_reload</code> usa healthcheck + <code>POST /-/reload</code> con reintentos. El bootstrap y la reconciliación reencolan deploys fallidos.</p></div>
@@ -112,6 +112,8 @@ POST /api/v1/admin/tenants/{id}/vmalert/redeploy</pre>
                     v
              respuesta con alertas procesadas</pre>
 <p class="text-sm text-slate-300 mt-3">El webhook se atiende en el backend claro del puerto <code>8000</code>: Alertmanager postea sin TLS y un <code>301</code> descartaría el payload. El perfil canónico es <code>alerts_manager</code> (no existe un perfil <code>alertmanager</code>): habilita reglas vmalert y los scopes <code>vmalert</code> y <code>alertmanager_global</code>. Las operaciones por tenant exigen además acceso al tenant (<code>user_tenants ∪ role_tenants</code>), con asignaciones explícitas para el rol <code>alerts_manager</code>; la consola global no tiene tenant pero revalida el perfil.</p>
+<div class="note mt-3">El tenant se resuelve desde los labels en orden: <code>tenant_id</code> → <code>exported_tenant_slug</code> → <code>tenant_slug</code> → <code>org_id</code> / <code>org_id_upper</code>. Un <code>tenant_id</code> explícito inexistente no cae a los slugs. Si no se resuelve el tenant pero hay clave (<code>tenant_id</code>, <code>exported_tenant_slug</code>, <code>tenant</code> u <code>org_id_upper</code>), se cierran las filas <code>firing</code> previas por labels: no se inserta una alerta huérfana ni se encola análisis IA. Los listados de recientes e historial tampoco muestran esas filas huérfanas.</div>
+<div class="note mt-3">En la UI, al hacer clic en una tarjeta de alerta se abre el detalle en <code>modal-alert-detail</code>. Los avisos, confirmaciones y entradas de texto usan los diálogos in-app <code>modal-notice</code>, <code>modal-confirm</code> y <code>modal-prompt</code>, no los nativos del navegador.</div>
 <div class="note mt-3">Los contextos de IA están restringidos: <code>vmalert_rules</code>, <code>victoria_metrics_query</code>, <code>victoria_logs_query</code>, <code>victoria_traces_query</code>, <code>pyroscope_query</code> y <code>parses_query</code>. Fuera de su ámbito, la respuesta canónica es "Solo puedo ayudarte con [tema]." El asistente de reglas recibe el borrador actual del editor en cada pregunta y te avisa de errores de YAML o indentación dentro del chat.</div>
 </section>
 <section class="glass-card p-6">
@@ -146,14 +148,14 @@ notify_user(user_id, type, title, body, job_id=None, link=None)
 <h2 class="mb-3"><i class="fa-solid fa-list-check text-emerald-300 mr-2" aria-hidden="true"></i>Verificación</h2>
 <div class="step"><div class="step-n">1</div><div class="text-xs text-slate-300">El tenant con <code>has_alerts</code> termina el alta con vmalert desplegado y reglas materializadas.</div></div>
 <div class="step"><div class="step-n">2</div><div class="text-xs text-slate-300">Editar reglas de un tenant interno devuelve <code>409</code>.</div></div>
-<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">El webhook persiste <code>ai_analysis</code> en <code>alert_history</code>.</div></div>
+<div class="step"><div class="step-n">3</div><div class="text-xs text-slate-300">El webhook persiste <code>ai_analysis</code> en <code>alert_history</code> y cierra por labels las <code>firing</code> huérfanas, que no aparecen en recientes/historial.</div></div>
 <div class="step"><div class="step-n">4</div><div class="text-xs text-slate-300">Un job con dueño genera notificación; uno interno, no.</div></div>
 </section>
 </article>
 <aside class="inspector space-y-5">
 <div class="glass-card p-5">
 <div class="flex items-center gap-2 mb-3"><i class="fa-solid fa-magnifying-glass text-sky-400" aria-hidden="true"></i><h2>Inspector</h2></div>
-<div class="kv"><span>Puerto vmalert</span><span>8880 + tenant_id</span></div>
+<div class="kv"><span>Puerto vmalert</span><span>asignado en remoto</span></div>
 <div class="kv"><span>Reglas</span><span>BD = verdad</span></div>
 <div class="kv"><span>Internos</span><span>409 al editar</span></div>
 <div class="kv"><span>Cap notificaciones</span><span>200 / usuario</span></div>

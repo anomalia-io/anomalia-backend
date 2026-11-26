@@ -121,12 +121,10 @@ gitleaks dir .</pre>
 <pre class="code">deploy-infra.yml:  vmalert_per_tenant: true
 
 unit:     anomalia-vmalert-&lt;tenant_slug&gt;.service
-puerto:   8880 + tenant_id   (METRICS=8881, TRACES=8882, AUDIT_LOGS=8884)
-8880:     reservado a anomalia-vmalert.service (modo single)
-PROFILES: sin vmalert; queda libre
-fallback: pool por-tenant con reserva transaccional en port_mapping
-          UNIQUE(instance_id, host_port)</pre>
-<p class="text-sm text-slate-300 mt-3">El puerto es determinista y se fuerza en la BD; el worker lo recalcula y corrige divergencias históricas en el bootstrap, encolando <code>vmalert_redeploy</code> si la instancia está desplegada. La baja borra la fila de <code>port_mapping</code> para liberar el slot.</p>
+puerto:   asignado en remoto por allocate-vmalert-port.yml
+          candidatos: preferido / pool del nodo / cola libre
+PROFILES: sin vmalert; queda libre</pre>
+<p class="text-sm text-slate-300 mt-3">El puerto ya no se calcula de forma determinística a partir del ID del tenant ni se fuerza en la BD: el worker envía candidatos al playbook remoto, lee el marcador <code>VMALERT_FREE_PORT=</code> y persiste ese valor. La reconciliación no reescribe puertos: solo re-encola <code>vmalert_redeploy</code> si el puerto registrado es inválido o está en uso en el nodo. <code>port_mapping</code> se consulta como fuente de puertos ocupados y se limpia al dar de baja el tenant, pero ya no reserva el puerto del alta. Antes de marcar la instancia como desplegada se espera a que <code>/health</code> responda.</p>
 <div class="warn mt-4">Healthcheck de vmalert: <code>GET /health</code> y recarga <code>POST /-/reload</code> (10 s, 3 reintentos, backoff 2/4 s). <code>/-/health</code> pertenece a vmauth/vmagent y devuelve 400 en vmalert.</div>
 </section>
 <section class="glass-card p-6">
@@ -140,19 +138,25 @@ fallback: pool por-tenant con reserva transaccional en port_mapping
 <section class="glass-card p-6">
 <h2 class="mb-3"><i class="fa-solid fa-boxes-stacked text-rose-300 mr-2" aria-hidden="true"></i>6. Propagación y worker</h2>
 <pre class="code">fuente autoritativa: playbooks raíz de anomalia-infra
-  deploy-infra.yml · destroy-infra.yml · install-binaries.yml · sync-*.yml
+  deploy-infra.yml · destroy-infra.yml · deploy-vmalert.yml
+  allocate-vmalert-port.yml · install-binaries.yml · sync-*.yml
 
 destinos en deploy:
   /opt/anomalia/backend/playbooks
   /app/playbooks  (horneado por COPY . . en la imagen)
 
 worker por tenant:
+  ansible-playbook -i &lt;ip&gt;, /app/playbooks/allocate-vmalert-port.yml
+    -e vmalert_tenant_slug=&lt;slug&gt;
+    -e vmalert_port_candidates=&lt;lista&gt;
+
   ansible-playbook -i &lt;ip&gt;, /app/playbooks/install-binaries.yml
     -e servicio=vmalert
     -e gestionar_servicios=true
     -e vmalert_instances=...</pre>
 <div class="danger mt-4"><code>roles/backend/src/</code> es legado muerto: nada lo referencia y no se mantiene. Los fixes van siempre en las plays raíz. Los guards ad-hoc toleran <code>groups.get('all', []) | length == 1</code> porque el worker usa inventario de un solo host sin grupos.</div>
 <p class="text-sm text-slate-300 mt-3">La post-task de deploy resincroniza <code>infrastructure_nodes.admin_password</code> con la clave OS generada en la corrida, solo en <code>backend_nodes</code>. Sin ella, un import o redeploy sin destroy deja la BD desacoplada del OS y el SSH del worker falla con <code>UNREACHABLE!</code>.</p>
+<div class="note mt-3">Mantenimiento planificado: los deploys, undeploys, redeploys y la actualización de binarios crean un silence de <code>VmalertTenantDown</code> por tenant y lo levantan al terminar; si la alerta sigue activa, se conserva hasta el TTL (600 s). El alta de tenant encola el deploy con <code>skip_regen=True</code> y hace el regen aparte; el rollback usa <code>skip_silence=True</code> en el undeploy para no abrir un segundo silence.</div>
 </section>
 <section class="glass-card p-6">
 <h2 class="mb-3"><i class="fa-solid fa-trash-can text-amber-300 mr-2" aria-hidden="true"></i>7. Destroy completo</h2>
@@ -168,7 +172,7 @@ worker por tenant:
 <div class="kv"><span>Units</span><span>por grupo</span></div>
 <div class="kv"><span>Boot</span><span>network-online</span></div>
 <div class="kv"><span>Restart</span><span>StartLimitIntervalSec=0</span></div>
-<div class="kv"><span>vmalert</span><span>8880 + tenant_id</span></div>
+<div class="kv"><span>vmalert</span><span>puerto remoto (Ansible)</span></div>
 <div class="kv"><span>Puertos lectura</span><span>8401/8481/8491/4040</span></div>
 <div class="kv"><span>Destroy</span><span>units derivadas por find</span></div>
 </div>

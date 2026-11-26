@@ -61,20 +61,24 @@ def _parse_ts(value: Optional[str]) -> Optional[datetime]:
 
 
 def _resolve_tenant_id(cursor, labels: Dict[str, str]) -> Optional[int]:
-    """Resuelve el tenant desde el label externo de vmalert (spec 018).
-
-    Cada vmalert per-tenant inyecta `-external.label=tenant_slug=<slug>`; como
-    fallback se acepta el `org_id` (X-Scope-OrgID) en mayúsculas.
-    """
-    slug = (labels.get("tenant_slug") or "").strip()
-    if slug:
+    raw_id = (labels.get("tenant_id") or "").strip()
+    if raw_id.isdigit():
         cursor.execute(
-            "SELECT id FROM tenants WHERE slug = %s AND deleted_at IS NULL LIMIT 1",
-            (slug,),
+            "SELECT id FROM tenants WHERE id = %s AND deleted_at IS NULL LIMIT 1",
+            (int(raw_id),),
         )
         row = cursor.fetchone()
-        if row:
-            return row[0]
+        return row[0] if row else None
+    for key in ("exported_tenant_slug", "tenant_slug"):
+        slug = (labels.get(key) or "").strip()
+        if slug:
+            cursor.execute(
+                "SELECT id FROM tenants WHERE slug = %s AND deleted_at IS NULL LIMIT 1",
+                (slug,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return row[0]
     org = (labels.get("org_id") or labels.get("org_id_upper") or "").strip()
     if org:
         cursor.execute(
@@ -86,6 +90,35 @@ def _resolve_tenant_id(cursor, labels: Dict[str, str]) -> Optional[int]:
         if row:
             return row[0]
     return None
+
+
+def _tenant_alert_key(labels: Dict[str, str]) -> Optional[str]:
+    raw_id = (labels.get("tenant_id") or "").strip()
+    if raw_id:
+        return raw_id
+    for key in ("exported_tenant_slug", "tenant", "org_id_upper"):
+        value = (labels.get(key) or "").strip()
+        if value:
+            return value
+    return None
+
+
+def _close_orphan_tenant_alerts(
+    cursor,
+    tenant_key: str,
+    ends_at: Optional[datetime] = None,
+) -> int:
+    cursor.execute(
+        """UPDATE alert_history
+              SET status='resolved', ends_at=%s, updated_at=NOW()
+            WHERE status='firing'
+              AND (labels->>'tenant_id'=%s
+                   OR labels->>'exported_tenant_slug'=%s
+                   OR labels->>'tenant'=%s
+                   OR UPPER(COALESCE(labels->>'org_id_upper', ''))=UPPER(%s))""",
+        (ends_at or datetime.utcnow(), tenant_key, tenant_key, tenant_key, tenant_key),
+    )
+    return cursor.rowcount or 0
 
 
 def _persist_alerts(alerts: List[Dict[str, Any]], status: str) -> List[Dict[str, Any]]:
@@ -109,6 +142,7 @@ def _persist_alerts(alerts: List[Dict[str, Any]], status: str) -> List[Dict[str,
             annotations = alert.get("annotations", {}) or {}
             fingerprint = (alert.get("fingerprint") or "").strip() or None
             tenant_id = _resolve_tenant_id(cursor, labels)
+            orphan_key = None if tenant_id is not None else _tenant_alert_key(labels)
             alertname = labels.get("alertname", "unknown") or "unknown"
             severity_label = (labels.get("severity") or "").strip() or None
             summary = annotations.get("summary", "") or ""
@@ -121,6 +155,16 @@ def _persist_alerts(alerts: List[Dict[str, Any]], status: str) -> List[Dict[str,
             queued: Optional[str] = None
 
             if status == "firing":
+                if orphan_key:
+                    _close_orphan_tenant_alerts(cursor, orphan_key, ends_at)
+                    processed.append({
+                        "fingerprint": fingerprint,
+                        "status": "resolved",
+                        "alert_id": None,
+                        "tenant_id": None,
+                        "queued": None,
+                    })
+                    continue
                 cursor.execute(
                     """INSERT INTO alert_history
                            (tenant_id, fingerprint, alertname, severity, severity_source,
@@ -167,6 +211,16 @@ def _persist_alerts(alerts: List[Dict[str, Any]], status: str) -> List[Dict[str,
                         timeout_seconds=ALERT_ANALYZE_TIMEOUT_SECONDS,
                     )
             else:
+                if orphan_key:
+                    _close_orphan_tenant_alerts(cursor, orphan_key, ends_at)
+                    processed.append({
+                        "fingerprint": fingerprint,
+                        "status": "resolved",
+                        "alert_id": None,
+                        "tenant_id": None,
+                        "queued": None,
+                    })
+                    continue
                 # resolved: cerrar la fila activa, no duplicar.
                 cursor.execute(
                     """UPDATE alert_history

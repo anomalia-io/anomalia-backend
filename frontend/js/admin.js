@@ -107,13 +107,13 @@ export const admin = {
 
         const EMAIL_REGEX = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
         if (!username || !EMAIL_REGEX.test(username)) {
-            alert("Error: Formato de email invalido.");
+            ui.showNotice("Error: Formato de email invalido.");
             return;
         }
 
         if (password || passwordConfirm) {
             if (password !== passwordConfirm) {
-                alert("Error: Las contraseñas no coinciden.");
+                ui.showNotice("Error: Las contraseñas no coinciden.");
                 return;
             }
         }
@@ -140,24 +140,28 @@ export const admin = {
                 this.loadUsers();
             } else {
                 const err = await res.json();
-                alert("Error: " + (err.detail || "No se pudo guardar el usuario."));
+                ui.showNotice("Error: " + (err.detail || "No se pudo guardar el usuario."));
             }
         } catch (e) {
             console.error(e);
-            alert("Error de red al intentar guardar el usuario.");
+            ui.showNotice("Error de red al intentar guardar el usuario.");
         }
     },
 
     async deleteUser(id) {
-        if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
+        if (!(await ui.confirmAction({
+            title: 'Eliminar usuario',
+            message: '¿Estás seguro de eliminar este usuario?',
+            confirmLabel: 'Eliminar',
+        }))) return;
         const token = api.getToken();
         try {
             const res = await fetch(`/api/v1/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) this.loadUsers();
-            else alert("Error al eliminar usuario.");
+            else ui.showNotice("Error al eliminar usuario.");
         } catch (e) {
             console.error(e);
-            alert("Error de red al eliminar usuario.");
+            ui.showNotice("Error de red al eliminar usuario.");
         }
     },
 
@@ -184,13 +188,24 @@ export const admin = {
                     const ingestUrl = t.vmauth_ingest_url
                         ? `<div class="flex items-center gap-2 mt-2">
                              <p class="text-xs font-mono opacity-90">Ingesta: <span class="text-cyan-300 break-all">${t.vmauth_ingest_url}</span></p>
-                             <button onclick="navigator.clipboard.writeText('${t.vmauth_ingest_url}').then(()=>alert('URL copiada'))" class="text-xs dynamic-card border px-2 py-1 rounded opacity-75 hover:opacity-100">Copiar</button>
+                             <button onclick="navigator.clipboard.writeText('${t.vmauth_ingest_url}').then(()=>window.anomaliaNotice('URL copiada'))" class="text-xs dynamic-card border px-2 py-1 rounded opacity-75 hover:opacity-100">Copiar</button>
                            </div>`
                         : '';
+                    const jobPending = t.job_status === 'queued' || t.job_status === 'running';
+                    const jobFailed = t.job_status === 'failed' || t.job_status === 'cancelled';
+                    const isReady = t.ready === true || (t.status === 'active' && (!t.has_alerts || t.vmalert_deployed));
+                    let statusBadge;
+                    if (jobFailed) {
+                        statusBadge = '<span class="text-red-400 text-xs font-mono ml-2">Error</span>';
+                    } else if (t.status === 'provisioning' || jobPending || !isReady) {
+                        statusBadge = `<span class="text-yellow-400 text-xs font-mono ml-2">Pendiente${t.job_phase ? ` · ${t.job_phase} ${t.job_progress || 0}%` : ''}</span>`;
+                    } else {
+                        statusBadge = '<span class="text-emerald-400 text-xs font-mono ml-2">Operativo</span>';
+                    }
                     return `
                     <div class="dynamic-card border rounded-xl p-4 flex justify-between items-center">
                         <div>
-                            <h4 class="font-bold text-sm">${t.name} <span class="text-emerald-400 text-xs font-mono ml-2">🟢 Operativo</span></h4>
+                            <h4 class="font-bold text-sm">${t.name} ${statusBadge}</h4>
                             <p class="text-xs opacity-75">Tipo: ${t.type} | Entorno: ${t.environment}</p>
                             <p class="text-xs opacity-75">vmalert: ${vmalertInfo} | vmauth: ${vmauthInfo} | alertas: ${t.has_alerts ? 'sí' : 'no'}</p>
                             <p class="text-xs opacity-60 mt-1">${t.description || 'Sin descripción'}</p>
@@ -354,7 +369,7 @@ export const admin = {
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
-                    alert("Error: " + (err.detail || "No se pudo guardar el tenant."));
+                    ui.showNotice("Error: " + (err.detail || "No se pudo guardar el tenant."));
                     return;
                 }
                 ui.toggleModal('modal-tenant', false);
@@ -373,7 +388,7 @@ export const admin = {
             this._watchTenantCreate(jobId);
         } catch (e) {
             console.error(e);
-            alert("Error: " + (e.message || "No se pudo guardar el tenant."));
+            ui.showNotice("Error: " + (e.message || "No se pudo guardar el tenant."));
         } finally {
             if (saveBtn) {
                 saveBtn.disabled = false;
@@ -503,16 +518,16 @@ export const admin = {
             tenant = (await api.fetchAdminTenants()).find((t) => String(t.id) === String(id));
         } catch (err) {
             console.error(err);
-            alert("No se pudo leer el tenant: " + (err.message || err));
+            ui.showNotice("No se pudo leer el tenant: " + (err.message || err));
             return;
         }
         if (!tenant) {
-            alert("El tenant ya no existe.");
+            ui.showNotice("El tenant ya no existe.");
             this.loadTenantsAdmin();
             return;
         }
         if (!tenant.slug) {
-            alert("Este tenant no tiene slug, asi que no se puede hard-deletar desde la UI.");
+            ui.showNotice("Este tenant no tiene slug, asi que no se puede hard-deletar desde la UI.");
             return;
         }
 
@@ -544,7 +559,7 @@ export const admin = {
             document.getElementById('tenant-delete-confirm')?.focus();
         } catch (err) {
             console.error(err);
-            alert("Paso 1 fallido: " + (err.message || err));
+            ui.showNotice("Paso 1 fallido: " + (err.message || err));
         } finally {
             btn.disabled = false;
             btn.textContent = 'Paso 1 · Generar challenge';
@@ -559,7 +574,7 @@ export const admin = {
         if (!id || !challengeId) return;
 
         if (typed !== slug) {
-            alert("El texto escrito no coincide con el slug del tenant. No se ha eliminado nada.");
+            ui.showNotice("El texto escrito no coincide con el slug del tenant. No se ha eliminado nada.");
             return;
         }
 
@@ -571,7 +586,7 @@ export const admin = {
             accepted = await api.deleteTenantConfirm2(id, challengeId, typed);
         } catch (err) {
             console.error(err);
-            alert("Paso 2 fallido: " + (err.message || err));
+            ui.showNotice("Paso 2 fallido: " + (err.message || err));
             btn.disabled = false;
             btn.textContent = 'Paso 2 · Eliminar definitivamente';
             return;
@@ -579,7 +594,7 @@ export const admin = {
 
         const jobId = accepted.job_id;
         if (!jobId) {
-            alert("El backend no devolvió un job_id.");
+            ui.showNotice("El backend no devolvió un job_id.");
             ui.toggleModal('modal-tenant-delete', false);
             this.loadTenantsAdmin();
             return;
@@ -857,13 +872,13 @@ export const admin = {
             const job = await this.runVmalertReload(tenantId, (j) => {
                 btn.textContent = `Recargando · ${j.progress_pct || 0}%`;
             });
-            alert(job.status === 'succeeded'
+            ui.showNotice(job.status === 'succeeded'
                 ? 'vmalert recargado correctamente.'
                 : `Reload finalizado con estado '${job.status}'` +
                   (job.error_code ? ` (${job.error_code})` : '') + '.');
         } catch (err) {
             console.error('Error recargando vmalert:', err);
-            alert('No se pudo recargar vmalert: ' + (err.message || err));
+            ui.showNotice('No se pudo recargar vmalert: ' + (err.message || err));
         } finally {
             btn.disabled = false;
             btn.textContent = original;
@@ -977,24 +992,28 @@ export const admin = {
                 this.loadRolesAdmin();
             } else {
                 const err = await res.json();
-                alert("Error: " + (err.detail || "No se pudo guardar el rol."));
+                ui.showNotice("Error: " + (err.detail || "No se pudo guardar el rol."));
             }
         } catch (e) {
             console.error(e);
-            alert("Error de red al guardar el rol.");
+            ui.showNotice("Error de red al guardar el rol.");
         }
     },
 
     async deleteRole(id) {
-        if (!confirm("¿Estás seguro de eliminar este rol?")) return;
+        if (!(await ui.confirmAction({
+            title: 'Eliminar rol',
+            message: '¿Estás seguro de eliminar este rol?',
+            confirmLabel: 'Eliminar',
+        }))) return;
         const token = api.getToken();
         try {
             const res = await fetch(`/api/v1/admin/roles/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) this.loadRolesAdmin();
-            else alert("Error al eliminar rol.");
+            else ui.showNotice("Error al eliminar rol.");
         } catch (e) {
             console.error(e);
-            alert("Error de red al eliminar rol.");
+            ui.showNotice("Error de red al eliminar rol.");
         }
     },
 
@@ -1096,10 +1115,10 @@ export const admin = {
         if (analysisLanguage) payload.analysis_language = analysisLanguage;
         try {
             await api.saveAIConfig(payload);
-            alert('Configuración de IA guardada correctamente.');
+            ui.showNotice('Configuración de IA guardada correctamente.');
             await this.loadAIConfig();
         } catch (e) {
-            alert('Error: ' + (e.message || 'No se pudo guardar la configuración.'));
+            ui.showNotice('Error: ' + (e.message || 'No se pudo guardar la configuración.'));
         }
     },
 
@@ -1201,11 +1220,11 @@ export const admin = {
         const token = api.getToken();
 
         if (!id) {
-            alert("Error: no se identificó el nodo a editar.");
+            ui.showNotice("Error: no se identificó el nodo a editar.");
             return;
         }
         if (!hostname || !ip_address || !component_type) {
-            alert("Error: Hostname, IP y Tipo son obligatorios.");
+            ui.showNotice("Error: Hostname, IP y Tipo son obligatorios.");
             return;
         }
 
@@ -1223,11 +1242,11 @@ export const admin = {
                 this.loadInfraNodes();
             } else {
                 const err = await res.json();
-                alert(err.detail || "No se pudo guardar el nodo.");
+                ui.showNotice(err.detail || "No se pudo guardar el nodo.");
             }
         } catch (e) {
             console.error(e);
-            alert("Error de red al guardar nodo.");
+            ui.showNotice("Error de red al guardar nodo.");
         }
     },
 
@@ -1268,7 +1287,7 @@ export const admin = {
 
             if (res.ok) {
                 setTimeout(() => {
-                    alert("Playbook ejecutado y nodo actualizado correctamente.");
+                    ui.showNotice("Playbook ejecutado y nodo actualizado correctamente.");
                     this.loadInfraNodes();
                 }, 500);
                 return;
@@ -1284,28 +1303,32 @@ export const admin = {
 
             console.error(`Update de infraestructura ${id} falló:`, detail);
             setTimeout(() => {
-                alert(`La actualización del nodo falló (HTTP ${res.status}).\n\n${detail}`);
+                ui.showNotice(`La actualización del nodo falló (HTTP ${res.status}).\n\n${detail}`);
                 this.loadInfraNodes();
             }, 500);
 
         } catch (e) {
             clearInterval(interval);
             console.error(e);
-            alert("Error de red o timeout al ejecutar la actualización del nodo.");
+            ui.showNotice("Error de red o timeout al ejecutar la actualización del nodo.");
             this.loadInfraNodes();
         }
     },
 
     async deleteInfraNode(id) {
-        if (!confirm("¿Estás seguro de eliminar este nodo?")) return;
+        if (!(await ui.confirmAction({
+            title: 'Eliminar nodo',
+            message: '¿Estás seguro de eliminar este nodo?',
+            confirmLabel: 'Eliminar',
+        }))) return;
         const token = api.getToken();
         try {
             const res = await fetch(`/api/v1/admin/infra/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) this.loadInfraNodes();
-            else alert("Error al eliminar nodo.");
+            else ui.showNotice("Error al eliminar nodo.");
         } catch (e) {
             console.error(e);
-            alert("Error de red al eliminar nodo.");
+            ui.showNotice("Error de red al eliminar nodo.");
         }
     },
 
@@ -1370,25 +1393,30 @@ export const admin = {
             smtp_from: document.getElementById('smtp-from')?.value?.trim() || '',
             smtp_use_tls: document.getElementById('smtp-use-tls')?.checked ?? true
         };
-        if (!payload.smtp_host) { alert('Error: El servidor SMTP es obligatorio.'); return; }
+        if (!payload.smtp_host) { ui.showNotice('Error: El servidor SMTP es obligatorio.'); return; }
         try {
             await api.saveSmtpConfig(payload);
-            alert('Configuracion SMTP guardada correctamente.');
+            ui.showNotice('Configuracion SMTP guardada correctamente.');
         } catch (e) {
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
     async testSmtpConfig() {
-        const to = prompt('Ingrese el email de destino para la prueba:');
+        const to = await ui.promptAction({
+            title: 'Prueba SMTP',
+            message: 'Ingrese el email de destino para la prueba:',
+            placeholder: 'destino@ejemplo.com',
+            confirmLabel: 'Enviar',
+        });
         if (!to) return;
         const EMAIL_REGEX = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
-        if (!EMAIL_REGEX.test(to)) { alert('Formato de email invalido.'); return; }
+        if (!EMAIL_REGEX.test(to)) { ui.showNotice('Formato de email invalido.'); return; }
         try {
             await api.testSmtpConfig(to);
-            alert('Email de prueba enviado correctamente.');
+            ui.showNotice('Email de prueba enviado correctamente.');
         } catch (e) {
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
@@ -1404,7 +1432,7 @@ export const admin = {
                 try {
                     JSON.parse(raw);
                 } catch (_) {
-                    alert('El contenido ingresado no es un JSON válido ni una clave privada PEM.');
+                    ui.showNotice('El contenido ingresado no es un JSON válido ni una clave privada PEM.');
                     return;
                 }
             }
@@ -1417,14 +1445,20 @@ export const admin = {
             const fileEl = document.getElementById('push-service-account-file');
             if (fileEl) fileEl.value = '';
             this.renderPushStatus(cfg);
-            alert('Configuración Android / Push guardada correctamente.');
+            ui.showNotice('Configuración Android / Push guardada correctamente.');
         } catch (e) {
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
     async testPushConfig() {
-        const token = prompt('Token FCM destino (dejar vacio para todos los dispositivos registrados):');
+        const promptedToken = await ui.promptAction({
+            title: 'Prueba de push',
+            message: 'Token FCM destino (dejar vacio para todos los dispositivos registrados):',
+            placeholder: 'token FCM (opcional)',
+            confirmLabel: 'Enviar',
+        });
+        const token = promptedToken ?? '';
         const payload = {
             title: 'Anomalia - Prueba de push',
             body: 'Notificacion de prueba desde la consola de Anomalia.'
@@ -1438,9 +1472,9 @@ export const admin = {
             let msg = `Push: ${result.delivered}/${result.attempted} entregados.`;
             if (result.skipped) msg += `\nOmitido: ${result.skipped}`;
             if (errors) msg += `\n${errors}`;
-            alert(msg);
+            ui.showNotice(msg);
         } catch (e) {
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
@@ -1451,9 +1485,9 @@ export const admin = {
         };
         try {
             await api.saveProxyConfig(payload);
-            alert('Configuracion de proxy guardada correctamente.');
+            ui.showNotice('Configuracion de proxy guardada correctamente.');
         } catch (e) {
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
@@ -1509,21 +1543,21 @@ export const admin = {
         if (secret) payload.client_secret = secret;
 
         if (payload.oidc_enabled && (!payload.issuer_url || !payload.client_id)) {
-            alert('Error: Issuer URL y Client ID son obligatorios para habilitar OIDC.');
+            ui.showNotice('Error: Issuer URL y Client ID son obligatorios para habilitar OIDC.');
             return;
         }
 
         try {
             await api.saveSSOConfig(payload);
-            alert('Configuración SSO guardada correctamente.');
+            ui.showNotice('Configuración SSO guardada correctamente.');
         } catch (e) {
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
     async exportBackup() {
         const password = document.getElementById('bkp-export-password')?.value;
-        if (!password) { alert('Ingrese una contraseña para cifrar el backup.'); return; }
+        if (!password) { ui.showNotice('Ingrese una contraseña para cifrar el backup.'); return; }
         try {
             const blob = await api.exportBackup(password);
             const url = URL.createObjectURL(blob);
@@ -1534,25 +1568,30 @@ export const admin = {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            alert('Backup exportado correctamente.');
+            ui.showNotice('Backup exportado correctamente.');
         } catch (e) {
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
     async importBackup() {
         const fileInput = document.getElementById('bkp-import-file');
         const password = document.getElementById('bkp-import-password')?.value;
-        if (!fileInput?.files?.length) { alert('Seleccione un archivo de backup.'); return; }
-        if (!password) { alert('Ingrese la contraseña del backup.'); return; }
-        if (!confirm('¿Importar backup? Si la reconciliación de infraestructura falla, se revertirá todo (base de datos e infraestructura) al estado previo. Los tenants se reasignarán a la infraestructura de este clúster.')) return;
+        if (!fileInput?.files?.length) { ui.showNotice('Seleccione un archivo de backup.'); return; }
+        if (!password) { ui.showNotice('Ingrese la contraseña del backup.'); return; }
+        if (!(await ui.confirmAction({
+            title: 'Importar backup',
+            message: '¿Importar backup? Si la reconciliación de infraestructura falla, se revertirá todo (base de datos e infraestructura) al estado previo. Los tenants se reasignarán a la infraestructura de este clúster.',
+            confirmLabel: 'Importar',
+            tone: 'warning',
+        }))) return;
 
         try {
             const data = await api.importBackup(fileInput.files[0], password);
             const jobId = data?.job_id;
             if (!jobId) {
                 this._importShowProgress(100, 'Importado', []);
-                alert(data?.message || 'Backup importado correctamente.');
+                ui.showNotice(data?.message || 'Backup importado correctamente.');
                 await this.loadTenantsAdmin();
                 return;
             }
@@ -1561,7 +1600,7 @@ export const admin = {
             const errEl = document.getElementById('bkp-import-progress-error');
             if (errEl) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
             document.getElementById('bkp-import-progress')?.classList.remove('hidden');
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
@@ -1630,12 +1669,12 @@ export const admin = {
                     errEl.textContent = job.logs_ref ? `${msg} Detalle: ${job.logs_ref}` : msg;
                     errEl.classList.remove('hidden');
                 }
-                alert(msg);
+                ui.showNotice(msg);
                 await this.loadTenantsAdmin();
                 return;
             }
             this._importShowProgress(100, 'done', job.steps);
-            alert(successMessage || 'Backup importado y reconciliado correctamente.');
+            ui.showNotice(successMessage || 'Backup importado y reconciliado correctamente.');
             await this.loadTenantsAdmin();
         } catch (e) {
             if (e.sessionExpired) {
@@ -1644,7 +1683,7 @@ export const admin = {
                 return;
             }
             if (errEl) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
-            alert(e.message);
+            ui.showNotice(e.message);
         }
     },
 
@@ -1714,32 +1753,46 @@ export const admin = {
     },
 
     async approveRequest(id) {
-        if (!confirm('¿Aprobar esta solicitud y otorgar los accesos?')) return;
+        if (!(await ui.confirmAction({
+            title: 'Aprobar solicitud',
+            message: '¿Aprobar esta solicitud y otorgar los accesos?',
+            confirmLabel: 'Aprobar',
+            tone: 'success',
+        }))) return;
         try {
             await api.approveAccessRequest(id);
             await this.loadApprovals();
         } catch (e) {
-            alert(e.message || 'No se pudo aprobar la solicitud.');
+            ui.showNotice(e.message || 'No se pudo aprobar la solicitud.');
         }
     },
 
     async rejectRequest(id) {
-        const note = prompt('Motivo del rechazo (opcional):') || '';
+        const note = (await ui.promptAction({
+            title: 'Rechazar solicitud',
+            message: 'Motivo del rechazo (opcional):',
+            placeholder: 'Motivo (opcional)',
+            confirmLabel: 'Rechazar',
+        })) || '';
         try {
             await api.rejectAccessRequest(id, note);
             await this.loadApprovals();
         } catch (e) {
-            alert(e.message || 'No se pudo rechazar la solicitud.');
+            ui.showNotice(e.message || 'No se pudo rechazar la solicitud.');
         }
     },
 
     async cancelRequest(id) {
-        if (!confirm('¿Cancelar esta solicitud?')) return;
+        if (!(await ui.confirmAction({
+            title: 'Cancelar solicitud',
+            message: '¿Cancelar esta solicitud?',
+            confirmLabel: 'Cancelar solicitud',
+        }))) return;
         try {
             await api.cancelAccessRequest(id);
             await this.loadApprovals();
         } catch (e) {
-            alert(e.message || 'No se pudo cancelar la solicitud.');
+            ui.showNotice(e.message || 'No se pudo cancelar la solicitud.');
         }
     },
 
@@ -1837,7 +1890,7 @@ export const admin = {
         try {
             await api.createAccessRequest({ roles, tenants, reason });
             ui.toggleModal('modal-access-request', false);
-            alert('Solicitud enviada. Un aprobador la revisará.');
+            ui.showNotice('Solicitud enviada. Un aprobador la revisará.');
             await this.loadApprovals();
         } catch (e) {
             showErr(e.message || 'No se pudo enviar la solicitud.');

@@ -79,7 +79,7 @@
 
     <header class="dynamic-card border-b px-6 py-4 flex justify-between items-center shadow-md z-20">
         <div class="flex items-center space-x-3">
-            <img src="assets/images/logo.png" alt="Anomalía" class="h-14 object-contain">
+            <img src="assets/images/logo.png?v=2" alt="Anomalía" class="h-14 object-contain">
         </div>
 
         <div class="flex items-center space-x-4">
@@ -905,6 +905,67 @@
                     <div id="tenant-delete-progress-bar" class="h-full bg-red-500 transition-all" style="width:0%"></div>
                 </div>
                 <p id="tenant-delete-progress-error" class="hidden text-xs text-red-400"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-alert-detail" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-2xl shadow-2xl space-y-4">
+            <div class="flex justify-between items-start border-b pb-3 dynamic-border">
+                <div>
+                    <h3 id="alert-detail-title" class="text-lg font-bold">Alerta</h3>
+                    <p id="alert-detail-subtitle" class="text-xs opacity-60 font-mono mt-1">-</p>
+                </div>
+                <button data-modal="modal-alert-detail" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="alert-detail-body" class="space-y-3"></div>
+            <div class="flex justify-end border-t dynamic-border pt-3">
+                <button data-modal="modal-alert-detail" class="dynamic-card border px-4 py-2 rounded-xl text-xs">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-notice" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 id="notice-title" class="text-lg font-bold">Aviso</h3>
+                <button data-modal="modal-notice" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="notice-body" class="text-sm whitespace-pre-wrap break-words opacity-90"></div>
+            <div class="flex justify-end border-t dynamic-border pt-3">
+                <button data-modal="modal-notice" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-confirm" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 id="confirm-title" class="text-lg font-bold">Confirmar</h3>
+                <button id="confirm-close" data-modal="modal-confirm" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="confirm-message" class="text-sm whitespace-pre-wrap break-words opacity-90"></div>
+            <div class="flex justify-end space-x-2 border-t dynamic-border pt-3">
+                <button id="confirm-cancel" data-modal="modal-confirm" class="dynamic-card border px-4 py-2 rounded-xl text-xs">Cancelar</button>
+                <button id="confirm-accept" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-prompt" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="dynamic-card border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 dynamic-border">
+                <h3 id="prompt-title" class="text-lg font-bold">Entrada</h3>
+                <button id="prompt-close" data-modal="modal-prompt" class="close-modal-btn opacity-75 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-2">
+                <p id="prompt-message" class="text-sm whitespace-pre-wrap break-words opacity-90"></p>
+                <input type="text" id="prompt-input" class="w-full dynamic-input border rounded-xl px-3 py-2 text-sm" autocomplete="off">
+                <p id="prompt-error" class="hidden text-xs text-red-400"></p>
+            </div>
+            <div class="flex justify-end space-x-2 border-t dynamic-border pt-3">
+                <button id="prompt-cancel" data-modal="modal-prompt" class="dynamic-card border px-4 py-2 rounded-xl text-xs">Cancelar</button>
+                <button id="prompt-accept" class="dynamic-accent px-4 py-2 rounded-xl text-xs font-semibold">Aceptar</button>
             </div>
         </div>
     </div>

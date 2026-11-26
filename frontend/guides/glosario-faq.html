@@ -105,7 +105,7 @@ a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
 <tr><td><strong>Job</strong></td><td>Trabajo duradero en <code>job_state</code> con <code>type</code>, <code>phase</code>, <code>steps[]</code>, <code>progress_pct</code>, <code>created_by</code> y <code>timeout_at</code>.</td></tr>
 <tr><td><strong>NOTIFY</strong></td><td>Señal <code>anomalia_jobs</code> que despierta al ejecutor serial al encolar con <code>enqueue_job_tx</code>.</td></tr>
 <tr><td><strong>Idempotencia</strong></td><td>Repetir una operación no duplica efectos: la misma configuración final, las mismas units y las mismas filas.</td></tr>
-<tr><td><strong>vmalert</strong></td><td>Evaluador de reglas. En modo por-tenant: <code>anomalia-vmalert-&lt;slug&gt;.service</code> en <code>8880 + tenant_id</code>.</td></tr>
+<tr><td><strong>vmalert</strong></td><td>Evaluador de reglas. En modo por-tenant: <code>anomalia-vmalert-&lt;slug&gt;.service</code> con puerto asignado en remoto por <code>allocate-vmalert-port.yml</code>.</td></tr>
 <tr><td><strong>vmagent</strong></td><td>Recolector que recibe los scrapes generados por <code>vmalert_regen_scrapes</code>.</td></tr>
 <tr><td><strong>vmauth</strong></td><td>Router de ingesta por tenant; no es el camino de lectura del proxy.</td></tr>
 <tr><td><strong>Parses</strong></td><td>Perses + datasources del tenant: dashboards, paneles, recursos y snapshot de datos.</td></tr>
@@ -113,7 +113,8 @@ a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
 <tr><td><strong>OIDC</strong></td><td>OpenID Connect. Modos: <code>local</code>, <code>local_only</code>, <code>hybrid</code>, <code>oidc_only</code>.</td></tr>
 <tr><td><strong>PKCE / JWKS</strong></td><td>Prueba de clave de código (S256) y conjunto de claves públicas para verificar el ID token.</td></tr>
 <tr><td><strong>Rollback</strong></td><td>Restauración del snapshot y limpieza remota ante fallo de import o creación de tenant.</td></tr>
-<tr><td><strong><code>port_mapping</code></strong></td><td>Reserva transaccional de <code>host_port</code> por instancia/nodo; se borra al dar de baja.</td></tr>
+<tr><td><strong><code>port_mapping</code></strong></td><td>Tabla histórica de mapeo de puertos. El worker la consulta como fuente de puertos ocupados y la baja limpia sus filas; la asignación del alta ya no depende de una reserva transaccional previa.</td></tr>
+<tr><td><strong>Silence planificado</strong></td><td>Silencio de <code>VmalertTenantDown</code> por tenant durante mantenimiento de vmalert; se levanta al terminar, salvo que la alerta siga activa (se conserva hasta el TTL de 600 s).</td></tr>
 </tbody>
 </table></div>
 </section>
@@ -124,7 +125,7 @@ a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué responde el alta de tenant?</h3><p class="text-xs text-slate-300 mt-1"><code>202 Accepted + job_id</code>. No es 201 y los IDs de datasource/puerto se asignan en el worker, nunca en la request.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Se conceden tenants con <code>user_tenants</code> al crear?</h3><p class="text-xs text-slate-300 mt-1">No. El pipeline usa solo <code>role_tenants</code> para <code>admin</code> y <code>tenant_manager</code> en <code>work</code>/<code>default</code>.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿PROFILES tiene vmalert?</h3><p class="text-xs text-slate-300 mt-1">No. <code>has_alerts=false</code>, sin unit ni puerto; los tenants internos sí consultan métricas del store <code>0:0</code>.</p></div>
-<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué puerto usa cada tenant?</h3><p class="text-xs text-slate-300 mt-1"><code>8880 + tenant_id</code>. El 8880 queda para la unit single; hay fallback defensivo al pool si hay colisión.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué puerto usa cada tenant?</h3><p class="text-xs text-slate-300 mt-1">Lo elige el playbook remoto <code>allocate-vmalert-port.yml</code> entre los candidatos (preferido, pool del nodo y cola libre). Ya no se calcula a partir del ID del tenant ni se fuerza en la BD; se persiste el <code>VMALERT_FREE_PORT=</code> devuelto tras sondear el host.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué healthcheck se usa para vmalert?</h3><p class="text-xs text-slate-300 mt-1"><code>GET /health</code> y <code>POST /-/reload</code>. <code>/-/health</code> es de vmauth/vmagent y devuelve 400 en vmalert.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Las lecturas pasan por vmauth?</h3><p class="text-xs text-slate-300 mt-1">No. El proxy verificó permisos y habla directo con el nodo <em>select</em>, inyectando el scope.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿El ticket es la sesión?</h3><p class="text-xs text-slate-300 mt-1">No. El ticket es de un solo uso en el canje; la cookie es la sesión y se reutiliza hasta expirar.</p></div>
@@ -133,7 +134,10 @@ a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿SSO asigna roles automáticamente?</h3><p class="text-xs text-slate-300 mt-1">No por defecto. Solo si llegan claims válidos que coincidan con roles/tenants existentes; alta aditiva.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿El backup incluye IPs de infraestructura?</h3><p class="text-xs text-slate-300 mt-1">No. Se cifra configuración; la infra se reconcilia en cada clúster. El import es un único job con rollback.</p></div>
 <div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Por qué un redeploy no revive una unit?</h3><p class="text-xs text-slate-300 mt-1">El handler solo reinicia si cambia el template. Cada role cierra con <code>systemd: state=started, enabled=yes</code> para converger estado.</p></div>
-<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Dónde viven los playbooks que ejecuta el worker?</h3><p class="text-xs text-slate-300 mt-1">En <code>/app/playbooks</code>, copia de los playbooks raíz. <code>roles/backend/src/</code> es legado muerto.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Dónde viven los playbooks que ejecuta el worker?</h3><p class="text-xs text-slate-300 mt-1">En <code>/app/playbooks</code>, copia de los playbooks raíz: <code>deploy-infra.yml</code>, <code>destroy-infra.yml</code>, <code>deploy-vmalert.yml</code>, <code>allocate-vmalert-port.yml</code>, <code>install-binaries.yml</code> y <code>sync-*.yml</code>. <code>roles/backend/src/</code> es legado muerto.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Qué pasa con las alertas de un tenant dado de baja?</h3><p class="text-xs text-slate-300 mt-1">El webhook resuelve el tenant por <code>tenant_id</code> → <code>exported_tenant_slug</code> → <code>tenant_slug</code> → <code>org_id</code>/<code>org_id_upper</code>. Si no lo resuelve, cierra las <code>firing</code> previas por labels (<code>tenant_id</code>, <code>exported_tenant_slug</code>, <code>tenant</code>, <code>org_id_upper</code>) en vez de insertar una huérfana; recientes e historial las excluyen.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿Por qué aparece un aviso de vmalert caído durante un deploy?</h3><p class="text-xs text-slate-300 mt-1">Porque el mantenimiento abre un silence planificado de <code>VmalertTenantDown</code> por tenant y espera a que la alerta se despeje antes de levantarlo (TTL de 600 s). Si falla, se registra como paso del job.</p></div>
+<div class="rounded-xl border border-slate-700/50 p-4"><h3>¿La UI usa los diálogos del navegador?</h3><p class="text-xs text-slate-300 mt-1">No. Las tarjetas de alerta abren <code>modal-alert-detail</code>; los avisos, confirmaciones y entradas usan <code>modal-notice</code>, <code>modal-confirm</code> y <code>modal-prompt</code> de la propia app.</p></div>
 </div>
 </section>
 <section class="glass-card p-6">
@@ -156,7 +160,7 @@ a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
 <div class="kv"><span>Docs relacionadas</span><span>14</span></div>
 <div class="kv"><span>Ids tenant</span><span>worker</span></div>
 <div class="kv"><span>Admin access</span><span>role_tenants</span></div>
-<div class="kv"><span>vmalert port</span><span>8880 + id</span></div>
+<div class="kv"><span>vmalert port</span><span>asignado por Ansible</span></div>
 <div class="kv"><span>Health vmalert</span><span>/health</span></div>
 <div class="kv"><span>Lecturas</span><span>select directo</span></div>
 <div class="kv"><span>Import</span><span>job único</span></div>

@@ -2,7 +2,8 @@
 
 El flujo de procesamiento automatizado de anomalías opera de la siguiente manera:
 1. **vmalert** evalúa las reglas de métricas del tenant.
-2. **Alertmanager** notifica vía webhook al backend FastAPI (`POST /api/v1/webhook/alertmanager`, exento del redirect HTTPS). El `firing` hace upsert de la única fila activa por `(tenant_id, fingerprint)` y encola `alert_analyze`; el `resolved` cierra esa fila y encola `alert_resolved`.
+2. **Alertmanager** notifica vía webhook al backend FastAPI (`POST /api/v1/webhook/alertmanager`, exento del redirect HTTPS). El tenant se resuelve desde los labels con precedencia `tenant_id` → `exported_tenant_slug` → `tenant_slug` → `org_id` / `org_id_upper` (un `tenant_id` explícito inexistente no cae a los slugs). Con tenant resuelto, el `firing` hace upsert de la única fila activa por `(tenant_id, fingerprint)` y encola `alert_analyze`; el `resolved` cierra esa fila y encola `alert_resolved`.
+   Cuando el tenant **no** se resuelve pero los labels traen clave (`tenant_id`, `exported_tenant_slug`, `tenant` u `org_id_upper`, este último case-insensitive), el webhook cierra las filas `firing` previas por labels en lugar de insertar una alerta huérfana: la entrada se devuelve como `resolved` (`alert_id: null`) y no se encola ni análisis IA ni notificación. Así se limpian los avisos de tenants dados de baja sin revivirlos.
 3. El **Backend** procesa la alerta y consulta al modelo de IA para diagnóstico (con fallback si el modelo no está disponible).
 4. **Distribución multi-canal** de la alerta enriquecida:
    - **Web** (bandeja in-app de usuarios con perfil `access_alerts`) y **App Android** (push FCM).

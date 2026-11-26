@@ -42,6 +42,11 @@ explícitamente: las operaciones tenant-scoped exigen el perfil **y** acceso a e
 
 ## 🔌 Endpoints Destacados
 
+### Listado de tenants (perfil `tenants_manager`)
+
+* **Ruta:** `GET /api/v1/admin/tenants` → `{tenants: [...]}`.
+* **Campos de despliegue y readiness:** `vmalert_deployed` (existe instancia `deployed` del tenant), `job_status`, `job_phase` y `job_progress` del último job de `tenant_create` / `vmalert_deploy` / `vmalert_redeploy` / `vmalert_undeploy`, y `ready` (`true` solo si `status='active'`). Son estos nombres, **no** `vmalert_job_*`.
+
 ### Configuración General, SMTP, Proxy y Backup (specs/014)
 
 Todos los endpoints bajo `/api/v1/system` requieren rol **`admin`** (`Depends(verify_admin_token)`).
@@ -169,10 +174,10 @@ Todos requieren rol **`admin`**. La service account se guarda en `system_setting
 
 * **Ruta:** `GET /api/v1/alerts/recent?limit=50`
 * **Permisos Requeridos:** perfil `access_alerts` (`verify_profile_access("access_alerts")`; scope por tenants visibles, `admin` ve todos).
-* **Descripción:** Devuelve `{items: [...]}` con las **alertas activas** (`status='firing'`). Cada ítem: `{id, tenant_id, tenant_name, alertname, severity, severity_source, summary, description, ai_summary, ai_root_cause, ai_checks, ai_error, status, labels, annotations, generator_url, severity_override_by, severity_override_at, starts_at, ends_at, notified_at, updated_at, email_status, email_error}`. `ai_error` es `null` si el análisis IA fue correcto; si no, el `kind` del fallo (`quota`/`transient`/`auth`/`invalid`/`rate_limit`) y la tarjeta se marca «IA no disponible» conservando los datos de Alertmanager (spec 018). `email_status` (`sent`/`failed`/`not_configured`/`skipped`) registra el envío del email a los destinatarios del tenant; si es `failed` o `not_configured`, la tarjeta muestra el badge **«Email no enviado»** con el motivo en `email_error`. El enlace `generator_url` apunta a la consola **vmalert** («Ver en vmalert»).
+* **Descripción:** Devuelve `{items: [...]}` con las **alertas activas** (`status='firing'`), excluyendo las filas huérfanas (`tenant_id IS NULL` con labels de tenant `tenant_id`, `exported_tenant_slug` o `tenant`). Cada ítem: `{id, tenant_id, tenant_name, alertname, severity, severity_source, summary, description, ai_summary, ai_root_cause, ai_checks, ai_error, status, labels, annotations, generator_url, severity_override_by, severity_override_at, starts_at, ends_at, notified_at, updated_at, email_status, email_error}`. `ai_error` es `null` si el análisis IA fue correcto; si no, el `kind` del fallo (`quota`/`transient`/`auth`/`invalid`/`rate_limit`) y la tarjeta se marca «IA no disponible» conservando los datos de Alertmanager (spec 018). `email_status` (`sent`/`failed`/`not_configured`/`skipped`) registra el envío del email a los destinatarios del tenant; si es `failed` o `not_configured`, la tarjeta muestra el badge **«Email no enviado»** con el motivo en `email_error`. El enlace `generator_url` apunta a la consola **vmalert** («Ver en vmalert»).
 
 * **Ruta:** `GET /api/v1/alerts/history?tenant_id=&status=&limit=&offset=&q=`
-* **Descripción:** Historial paginado (activas y resueltas) → `{items: [...], total}`. El parámetro `q` busca de forma **case-insensitive** (`ILIKE`) sobre `alertname`, `summary`, `description` y `ai_summary`, escapando los comodines del usuario.
+* **Descripción:** Historial paginado (activas y resueltas) → `{items: [...], total}`. Aplica el mismo filtro de filas `firing` huérfanas que `recent`. El parámetro `q` busca de forma **case-insensitive** (`ILIKE`) sobre `alertname`, `summary`, `description` y `ai_summary`, escapando los comodines del usuario.
 
 * **Ruta:** `PATCH /api/v1/alerts/{alert_id}/severity`
 * **Permisos Requeridos:** perfil `alerts_manager`.
@@ -187,12 +192,20 @@ Todos requieren rol **`admin`**. La service account se guarda en `system_setting
 * **Webhook de Alertmanager:** `POST /api/v1/webhook/alertmanager`,
   protegido por `verify_webhook_token` (Bearer `ALERTMANAGER_WEBHOOK_TOKEN`;
   abierto si no está configurado). No bloquea a AM. Exento del redirect HTTPS.
-* **Ciclo de vida (spec 018):** el `firing` hace upsert de la **única fila activa**
-  por `(tenant_id, fingerprint)` (índice parcial `uq_alert_history_active ... WHERE
-  status='firing'`) y encola `alert_analyze`. El `resolved` **cierra** esa fila
-  (`UPDATE`, no inserta) y, si afecta exactamente una fila, encola `alert_resolved`
-  para notificar la regularización (in-app + push). Un re-disparo tras resolver abre
-  un nuevo episodio.
+* **Ciclo de vida (spec 018):** el tenant se resuelve desde los labels en este orden:
+  `tenant_id` (ID numérico) → `exported_tenant_slug` → `tenant_slug` → `org_id` /
+  `org_id_upper`. Un `tenant_id` explícito que no existe en BD **no** cae a los slugs.
+  Cuando no hay tenant resoluble pero los labels aportan una clave
+  (`tenant_id`, `exported_tenant_slug`, `tenant` u `org_id_upper`), el webhook
+  **cierra las filas `firing` previas por labels** (`UPDATE`, sin insertar una alerta
+  nueva sin tenant) y devuelve la alerta como `resolved` sin encolar análisis ni
+  notificación.
+* **Ciclo de vida con tenant resuelto (spec 018):** el `firing` hace upsert de la
+  **única fila activa** por `(tenant_id, fingerprint)` (índice parcial
+  `uq_alert_history_active ... WHERE status='firing'`) y encola `alert_analyze`. El
+  `resolved` **cierra** esa fila (`UPDATE`, no inserta) y, si afecta exactamente una
+  fila, encola `alert_resolved` para notificar la regularización (in-app + push). Un
+  re-disparo tras resolver abre un nuevo episodio.
 
 ### 1. Sincronización y Materialización de Reglas vmalert
 * **Ruta:** `POST /api/v1/admin/tenants/{tenant_id}/vmalert/sync_rules`

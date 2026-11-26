@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { initNotifications } from './notifications.js';
 
 window.admin = admin;
+window.anomaliaNotice = (message, title = null, tone = null) => ui.showNotice(message, title, tone);
 
 // Deep-link ?tab=... : las notificaciones guardan link="/?tab=alerts" (spec 018),
 // el import usa "/?tab=bkp" (spec 017) y las aprobaciones "/?tab=approvals"
@@ -152,7 +153,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ui.renderTenants(tenants, state.currentUserRoles, state.currentUserProfiles);
     } catch (err) {
         console.error("Error al cargar tenants del usuario:", err);
-        alert("No se pudieron cargar los tenants autorizados: " + (err.message || err));
+        ui.showNotice("No se pudieron cargar los tenants autorizados: " + (err.message || err));
     }
 
     // Deep-link desde notificaciones (/?tab=alerts, /?tab=bkp).
@@ -167,11 +168,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const returnMain = document.getElementById('btn-return-main');
     if (returnMain) returnMain.addEventListener('click', () => ui.returnToMainView());
 
-    document.querySelectorAll('.close-modal-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const modalId = btn.getAttribute('data-modal');
-            ui.toggleModal(modalId, false);
-        });
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-modal]');
+        if (!btn) return;
+        ui.toggleModal(btn.getAttribute('data-modal'), false);
     });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -218,7 +218,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (tab) tab.location = url;
             else window.open(url, '_blank');
         } catch (err) {
-            alert('No se pudo abrir ' + label + ': ' + (err.message || err));
+            ui.showNotice('No se pudo abrir ' + label + ': ' + (err.message || err));
         } finally {
             consoleBtn.disabled = false;
             consoleBtn.textContent = original;
@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const avatarFile = document.getElementById('input-user-avatar-file')?.files[0];
             
             if (newPassword && newPassword !== confirmPassword) {
-                alert("Las contraseñas no coinciden.");
+                ui.showNotice("Las contraseñas no coinciden.");
                 return;
             }
 
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (res.ok) {
                     const data = await res.json();
-                    alert("¡Preferencias guardadas con éxito!");
+                    ui.showNotice("¡Preferencias guardadas con éxito!");
                     
                     if (data.avatar_url) {
                         const timestamp = new Date().getTime();
@@ -266,11 +266,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ui.toggleModal('profile-modal', false);
                 } else {
                     const err = await res.json();
-                    alert("Error al actualizar perfil: " + (err.detail || "Error desconocido"));
+                    ui.showNotice("Error al actualizar perfil: " + (err.detail || "Error desconocido"));
                 }
             } catch (error) {
                 console.error(error);
-                alert("Error de red al actualizar perfil.");
+                ui.showNotice("Error de red al actualizar perfil.");
             }
         });
     }

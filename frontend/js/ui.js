@@ -144,6 +144,148 @@ export const ui = {
         }
     },
 
+    showNotice(message, title = null, tone = null) {
+        const text = String(message ?? '');
+        const inferred = tone || (
+            /(error|fall|no se pudo|inválid|rechaz)/i.test(text)
+                ? 'error'
+                : /(correct|guardad|enviad|importad|exportad|copiad)/i.test(text)
+                    ? 'success'
+                    : 'info'
+        );
+        const modalTitle = document.getElementById('notice-title');
+        const modalBody = document.getElementById('notice-body');
+        if (!modalTitle || !modalBody) return;
+        modalTitle.textContent = title || (
+            inferred === 'error' ? 'Error' : inferred === 'success' ? 'Listo' : 'Aviso'
+        );
+        modalTitle.className = `text-lg font-bold ${
+            inferred === 'error'
+                ? 'text-red-400'
+                : inferred === 'success'
+                    ? 'text-emerald-400'
+                    : 'dynamic-text-accent'
+        }`;
+        modalBody.textContent = text;
+        this.toggleModal('modal-notice', true);
+    },
+
+    confirmAction(options = {}) {
+        const {
+            title = 'Confirmar',
+            message = '',
+            confirmLabel = 'Aceptar',
+            tone = 'error',
+        } = options;
+        const modal = document.getElementById('modal-confirm');
+        const titleEl = document.getElementById('confirm-title');
+        const messageEl = document.getElementById('confirm-message');
+        const acceptBtn = document.getElementById('confirm-accept');
+        const cancelBtn = document.getElementById('confirm-cancel');
+        const closeBtn = document.getElementById('confirm-close');
+        if (!modal || !titleEl || !messageEl || !acceptBtn || !cancelBtn || !closeBtn) {
+            return Promise.resolve(false);
+        }
+        if (this._confirmResolver) this._confirmResolver(false);
+
+        return new Promise((resolve) => {
+            this._confirmResolver = resolve;
+            titleEl.textContent = title;
+            titleEl.className = `text-lg font-bold ${
+                tone === 'error'
+                    ? 'text-red-400'
+                    : tone === 'success'
+                        ? 'text-emerald-400'
+                        : 'dynamic-text-accent'
+            }`;
+            messageEl.textContent = String(message ?? '');
+            acceptBtn.textContent = confirmLabel || 'Aceptar';
+            acceptBtn.className = `px-4 py-2 rounded-xl text-xs font-semibold ${
+                tone === 'error' ? 'bg-red-500 text-white' : 'dynamic-accent'
+            }`;
+
+            const finish = (value) => {
+                if (this._confirmResolver === resolve) this._confirmResolver = null;
+                this.toggleModal('modal-confirm', false);
+                resolve(value);
+            };
+            acceptBtn.onclick = () => finish(true);
+            cancelBtn.onclick = () => finish(false);
+            closeBtn.onclick = () => finish(false);
+            this.toggleModal('modal-confirm', true);
+        });
+    },
+
+    promptAction(options = {}) {
+        const {
+            title = 'Entrada',
+            message = '',
+            placeholder = '',
+            defaultValue = '',
+            confirmLabel = 'Aceptar',
+        } = options;
+        const modal = document.getElementById('modal-prompt');
+        const titleEl = document.getElementById('prompt-title');
+        const messageEl = document.getElementById('prompt-message');
+        const input = document.getElementById('prompt-input');
+        const errorEl = document.getElementById('prompt-error');
+        const acceptBtn = document.getElementById('prompt-accept');
+        const cancelBtn = document.getElementById('prompt-cancel');
+        const closeBtn = document.getElementById('prompt-close');
+        if (!modal || !titleEl || !messageEl || !input || !errorEl || !acceptBtn || !cancelBtn || !closeBtn) {
+            return Promise.resolve(null);
+        }
+        if (this._promptResolver) this._promptResolver(null);
+
+        return new Promise((resolve) => {
+            this._promptResolver = resolve;
+            titleEl.textContent = title;
+            titleEl.className = 'text-lg font-bold dynamic-text-accent';
+            messageEl.textContent = String(message ?? '');
+            input.value = defaultValue ?? '';
+            input.placeholder = placeholder || '';
+            input.type = 'text';
+            acceptBtn.textContent = confirmLabel || 'Aceptar';
+            errorEl.textContent = '';
+            errorEl.classList.add('hidden');
+
+            const finish = (value) => {
+                if (this._promptResolver === resolve) this._promptResolver = null;
+                this.toggleModal('modal-prompt', false);
+                resolve(value);
+            };
+            acceptBtn.onclick = () => finish(input.value);
+            cancelBtn.onclick = () => finish(null);
+            closeBtn.onclick = () => finish(null);
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finish(input.value);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    finish(null);
+                }
+            };
+            this.toggleModal('modal-prompt', true);
+            input.focus();
+        });
+    },
+
+    openAlertDetail(alert) {
+        if (!alert) return;
+        const modal = document.getElementById('modal-alert-detail');
+        const body = document.getElementById('alert-detail-body');
+        if (!modal || !body) return;
+        this._currentAlertDetail = alert;
+        document.getElementById('alert-detail-title').textContent =
+            alert.alertname || '(sin nombre)';
+        document.getElementById('alert-detail-subtitle').textContent =
+            alert.tenant_name || (alert.tenant_id ? `tenant ${alert.tenant_id}` : 'global');
+        body.innerHTML = this._alertDetailHtml(alert);
+        this._wireSeveritySelects(body);
+        this.toggleModal('modal-alert-detail', true);
+    },
+
     toggleAdminSidebar() {
         document.getElementById("admin-sidebar")?.classList.toggle("hidden");
     },
@@ -529,7 +671,7 @@ export const ui = {
                 window.open(url, '_blank');
             } catch (err) {
                 console.error('Error abriendo la consola global de Alertmanager:', err);
-                alert('No se pudo abrir Alertmanager: ' + (err.message || err));
+                this.showNotice('No se pudo abrir Alertmanager: ' + (err.message || err));
             }
         });
 
@@ -541,7 +683,7 @@ export const ui = {
                     window.open(url, '_blank');
                 } catch (err) {
                     console.error('Error abriendo la consola vmalert del tenant:', err);
-                    alert('No se pudo abrir vmalert: ' + (err.message || err));
+                    this.showNotice('No se pudo abrir vmalert: ' + (err.message || err));
                 }
             });
         });
@@ -682,48 +824,21 @@ export const ui = {
     },
 
     _alertCardHtml(a) {
-        const profiles = state.currentUserProfiles || [];
-        const canManage = profiles.includes('alerts_manager') || profiles.includes('admin');
         const firing = (a.status || 'firing') === 'firing';
         const statusBadge = firing
             ? '<span class="inline-block px-2 py-1 bg-red-500/20 text-red-400 text-xs font-semibold rounded">Firing</span>'
             : '<span class="inline-block px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded">Resolved</span>';
         const summary = a.ai_summary || a.summary || '(sin resumen)';
-        const checks = Array.isArray(a.ai_checks) ? a.ai_checks : [];
-        const checksHtml = checks.length
-            ? `<ul class="list-disc list-inside space-y-1 mt-1">${checks.map(c => `<li>${esc(c)}</li>`).join('')}</ul>`
-            : '<p class="opacity-60">Sin opciones de revisión generadas.</p>';
-        // Fallback visible (spec 018): el análisis IA falló, pero se conservan los
-        // datos originales de Alertmanager. Se marca en la tarjeta.
         const aiErrorBadge = a.ai_error
             ? '<span class="inline-block px-2 py-1 bg-amber-500/20 text-amber-400 text-xs font-semibold rounded" title="La IA no pudo analizar esta alerta; se muestran los datos originales de Alertmanager.">IA no disponible</span>'
             : '';
-        // Entrega de email auditable (spec 018): si el envío a los destinatarios
-        // del tenant falló o no había SMTP, se marca en la tarjeta.
         const emailBadge = a.email_status === 'failed' || a.email_status === 'not_configured'
             ? `<span class="inline-block px-2 py-1 bg-red-500/20 text-red-400 text-xs font-semibold rounded" title="${esc(a.email_error || 'No se pudo enviar el email de la alerta a los destinatarios.')}">Email no enviado</span>`
             : '';
-        const rootCause = a.ai_root_cause
-            ? `<p class="text-xs"><span class="font-bold">Causa probable:</span> ${esc(a.ai_root_cause)}</p>`
-            : '<p class="text-xs opacity-60">Sin causa raíz estimada (análisis pendiente o IA no disponible).</p>';
-        const override = a.severity_override_by
-            ? `<p class="text-xs opacity-60">Criticidad ajustada por ${esc(a.severity_override_by)}</p>`
-            : '';
-        const sevSelect = canManage
-            ? `<select class="sev-override dynamic-input border rounded-lg px-2 py-1 text-xs cursor-pointer"
-                       data-alert-id="${esc(a.id)}" data-current="${esc(a.severity || 'info')}">
-                   ${['critical', 'high', 'medium', 'low', 'info'].map(s =>
-                       `<option value="${s}" ${s === (a.severity || 'info') ? 'selected' : ''}>${s}</option>`).join('')}
-               </select>`
-            : '';
-        const link = a.generator_url
-            ? `<a href="${esc(a.generator_url)}" target="_blank" rel="noopener" class="text-xs dynamic-text-accent underline">Ver en vmalert</a>`
-            : '';
-        const time = a.starts_at ? new Date(a.starts_at).toLocaleString() : '';
 
         return `
             <div class="dynamic-card border rounded-xl overflow-hidden" data-alert-card="${esc(a.id)}">
-                <div class="p-4 flex justify-between items-start cursor-pointer alert-card-header">
+                <div class="p-4 flex justify-between items-center cursor-pointer alert-card-header" data-alert-id="${esc(a.id)}">
                     <div class="space-y-1">
                         <div class="flex items-center space-x-2 flex-wrap gap-y-1">
                             ${this._severityBadge(a.severity)}
@@ -735,37 +850,79 @@ export const ui = {
                         </div>
                         <p class="text-sm">${esc(summary)}</p>
                     </div>
-                    <i class="fa-solid fa-chevron-down opacity-60 transition-transform alert-card-chevron"></i>
-                </div>
-                <div class="hidden border-t dynamic-border p-4 space-y-3 bg-black/10 alert-card-body">
-                    ${rootCause}
-                    <div class="text-xs"><span class="font-bold">Opciones a revisar:</span>${checksHtml}</div>
-                    ${a.description ? `<p class="text-xs opacity-75">${esc(a.description)}</p>` : ''}
-                    <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
-                        <div class="flex items-center space-x-2">
-                            ${sevSelect}
-                            ${override}
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <span class="text-xs opacity-60">${esc(time)}</span>
-                            ${link}
-                        </div>
-                    </div>
+                    <i class="fa-solid fa-arrow-up-right-from-square opacity-60"></i>
                 </div>
             </div>
         `;
     },
 
+    _alertDetailHtml(a) {
+        const profiles = state.currentUserProfiles || [];
+        const canManage = profiles.includes('alerts_manager') || profiles.includes('admin');
+        const firing = (a.status || 'firing') === 'firing';
+        const statusBadge = firing
+            ? '<span class="inline-block px-2 py-1 bg-red-500/20 text-red-400 text-xs font-semibold rounded uppercase">Firing</span>'
+            : '<span class="inline-block px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded uppercase">Resolved</span>';
+        const summary = a.ai_summary || a.summary || '(sin resumen)';
+        const checks = Array.isArray(a.ai_checks) ? a.ai_checks : [];
+        const checksHtml = checks.length
+            ? `<ol class="list-decimal list-inside space-y-1 mt-1">${checks.map(c => `<li>${esc(c)}</li>`).join('')}</ol>`
+            : '<p class="opacity-60">Sin opciones de revisión generadas.</p>';
+        const rootCause = a.ai_root_cause
+            ? `<p><span class="font-bold">Causa probable:</span> ${esc(a.ai_root_cause)}</p>`
+            : '<p class="opacity-60">Sin causa raíz estimada (análisis pendiente o IA no disponible).</p>';
+        const override = a.severity_override_by
+            ? `<p class="opacity-60">Criticidad ajustada por ${esc(a.severity_override_by)}</p>`
+            : '';
+        const sevSelect = canManage
+            ? `<select class="sev-override dynamic-input border rounded-lg px-2 py-1 text-xs cursor-pointer"
+                       data-alert-id="${esc(a.id)}" data-current="${esc(a.severity || 'info')}">
+                    ${['critical', 'high', 'medium', 'low', 'info'].map(s =>
+                        `<option value="${s}" ${s === (a.severity || 'info') ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>`
+            : '';
+        const link = a.generator_url
+            ? `<a href="${esc(a.generator_url)}" target="_blank" rel="noopener" class="text-xs dynamic-text-accent underline"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Ver en vmalert</a>`
+            : '';
+        const fmt = (value) => value ? new Date(value).toLocaleString() : '-';
+
+        return `
+            <div class="dynamic-card border rounded-xl p-4 space-y-3 text-sm">
+                <div class="flex items-center space-x-2 flex-wrap gap-y-1">${statusBadge}${this._severityBadge(a.severity)}</div>
+                <p>${esc(summary)}</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs border-y dynamic-border py-3">
+                    <p><span class="opacity-60">Inicio:</span> ${esc(fmt(a.starts_at))}</p>
+                    <p><span class="opacity-60">Fin:</span> ${esc(fmt(a.ends_at))}</p>
+                    <p><span class="opacity-60">Origen:</span> ${esc(a.alertname || '-')}</p>
+                </div>
+                <div class="text-xs space-y-2">
+                    ${rootCause}
+                    <div><span class="font-bold">Opciones a revisar:</span>${checksHtml}</div>
+                    ${a.description ? `<p class="opacity-75">${esc(a.description)}</p>` : ''}
+                </div>
+                <div class="flex items-center justify-between flex-wrap gap-2 border-t dynamic-border pt-3">
+                    <div class="flex items-center space-x-2">${sevSelect}${override}</div>
+                    ${link}
+                </div>
+            </div>
+        `;
+    },
+
+    _findAlert(id) {
+        const numeric = Number(id);
+        return [...(this._recentAlerts || []), ...(this._alertHistoryItems || [])]
+            .find((a) => Number(a.id) === numeric) || null;
+    },
+
     _wireAlertCards(container) {
         container.querySelectorAll('.alert-card-header').forEach((header) => {
             header.addEventListener('click', () => {
-                const body = header.parentElement.querySelector('.alert-card-body');
-                const chevron = header.querySelector('.alert-card-chevron');
-                body?.classList.toggle('hidden');
-                chevron?.classList.toggle('rotate-180');
+                this.openAlertDetail(this._findAlert(header.getAttribute('data-alert-id')));
             });
         });
+    },
 
+    _wireSeveritySelects(container) {
         container.querySelectorAll('.sev-override').forEach((sel) => {
             sel.addEventListener('change', async (e) => {
                 e.stopPropagation();
@@ -776,14 +933,18 @@ export const ui = {
                 try {
                     await api.overrideAlertSeverity(alertId, severity);
                     sel.setAttribute('data-current', severity);
+                    if (this._currentAlertDetail && Number(this._currentAlertDetail.id) === Number(alertId)) {
+                        this._currentAlertDetail.severity = severity;
+                    }
                 } catch (err) {
                     console.error('Error al ajustar criticidad:', err);
-                    alert('No se pudo actualizar la criticidad: ' + (err.message || err));
+                    this.showNotice('No se pudo actualizar la criticidad: ' + (err.message || err));
                     sel.value = previous;
                 }
             });
         });
     },
+
 
     // --- Destinatarios de alertas (spec 018, alerts_manager) ---
 
@@ -850,10 +1011,14 @@ export const ui = {
             });
         });
         list.querySelectorAll('.btn-del-recipient').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                if (confirm('¿Eliminar este destinatario?')) {
-                    this.deleteAlertRecipient(btn.getAttribute('data-recipient-id'));
-                }
+            btn.addEventListener('click', async () => {
+                const accepted = await this.confirmAction({
+                    title: 'Eliminar destinatario',
+                    message: '¿Eliminar este destinatario?',
+                    confirmLabel: 'Eliminar',
+                });
+                if (!accepted) return;
+                await this.deleteAlertRecipient(btn.getAttribute('data-recipient-id'));
             });
         });
     },
@@ -862,14 +1027,14 @@ export const ui = {
         const tenantId = this._recipientsTenantId;
         const email = document.getElementById('alert-recipient-email')?.value.trim();
         const label = document.getElementById('alert-recipient-label')?.value.trim();
-        if (!email) { alert('Ingresa un correo.'); return; }
+        if (!email) { this.showNotice('Ingresa un correo.'); return; }
         try {
             await api.addAlertRecipient(tenantId, { email, label, enabled: true });
             document.getElementById('alert-recipient-email').value = '';
             document.getElementById('alert-recipient-label').value = '';
             await this.renderAlertRecipients();
         } catch (err) {
-            alert('No se pudo añadir: ' + (err.message || err));
+            this.showNotice('No se pudo añadir: ' + (err.message || err));
         }
     },
 
@@ -878,7 +1043,7 @@ export const ui = {
             await api.updateAlertRecipient(this._recipientsTenantId, recipientId, payload);
             await this.renderAlertRecipients();
         } catch (err) {
-            alert('No se pudo actualizar: ' + (err.message || err));
+            this.showNotice('No se pudo actualizar: ' + (err.message || err));
         }
     },
 
@@ -887,7 +1052,7 @@ export const ui = {
             await api.deleteAlertRecipient(this._recipientsTenantId, recipientId);
             await this.renderAlertRecipients();
         } catch (err) {
-            alert('No se pudo eliminar: ' + (err.message || err));
+            this.showNotice('No se pudo eliminar: ' + (err.message || err));
         }
     }
 };

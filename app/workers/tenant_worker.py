@@ -5,10 +5,13 @@ import logging
 import time
 import uuid
 from typing import Optional
+from urllib.parse import quote
 
+import httpx
 from psycopg2.extras import Json
 
 from .base import BaseWorker, enqueue_job_tx
+from ..alert_silences import planned_vmalert_silences
 from ..database import get_db_connection
 from ..parses_provisioner import provision_tenant_parses, delete_tenant_parses
 
@@ -23,6 +26,18 @@ REGEN_WAIT_SECONDS = 300
 QUEUE_GRACE_SECONDS = 600
 # Intervalo de sondeo del estado de un job dependiente.
 JOB_POLL_SECONDS = 3
+# Verificación final de que las rutas de ingesta y vmalert responden antes de
+# marcar el tenant como activo y notificar el éxito del alta.
+READY_CHECK_ATTEMPTS = 30
+READY_CHECK_TIMEOUT_SECONDS = 5
+READY_CHECK_BACKOFF_SECONDS = 2
+INGEST_ROUTE_PROBES = {
+    'logs': '/insert/loki/api/v1/push',
+    'audit_logs': '/insert/loki/api/v1/push',
+    'traces': '/insert/opentelemetry/v1/traces',
+}
+INGEST_ROUTE_DEFAULT = '/insert/prometheus/api/v1/write'
+ROUTE_MISSING_MARKER = 'unauthorized missing route'
 
 
 class TenantWorker(BaseWorker):
@@ -54,6 +69,15 @@ class TenantWorker(BaseWorker):
         Corre completo en thread: sin DB síncrona en el event loop de uvicorn.
         """
         await asyncio.to_thread(self._tenant_create_sync, job_id, tenant_id)
+        try:
+            await self._wait_until_tenant_ready(job_id, tenant_id)
+        except Exception as exc:
+            logger.error("tenant %s no quedó listo, iniciando rollback: %s", tenant_id, exc, exc_info=True)
+            try:
+                await asyncio.to_thread(self._rollback_tenant_create, tenant_id, exc)
+            except Exception as rb_exc:  # noqa: BLE001
+                logger.error("Rollback del tenant %s falló: %s", tenant_id, rb_exc, exc_info=True)
+            raise
 
     def _tenant_create_sync(self, job_id: str, tenant_id: int) -> None:
         try:
@@ -162,31 +186,32 @@ class TenantWorker(BaseWorker):
             conn.close()
             conn = cursor = None
 
-            # 5. Marcar 'active' antes del deploy: asi el regen que encola el propio
-            #    vmalert ya incluye la ruta del tenant (un solo regen, spec 011 §4.4).
-            self._set_tenant_status(tenant_id, 'active')
+            # 5. El tenant sigue 'provisioning' hasta que las fases dependientes
+            #    y el healthcheck final confirmen que la ingesta está lista.
+            self._set_tenant_status(tenant_id, 'provisioning')
             steps = self._tenant_create_step(job_id, steps, "activating", 52)
 
             needs_vmalert = has_alerts and not is_profiles
             if needs_vmalert:
                 self._check_deadline(deadline, "deploying_vmalert")
                 steps = self._tenant_create_step(job_id, steps, "deploying_vmalert", 55, status="running")
-                dep_job = self._enqueue_standalone_job('vmalert_deploy', tenant_id)
+                dep_job = self._enqueue_standalone_job(
+                    'vmalert_deploy', tenant_id, {'skip_regen': True}
+                )
                 status = self._wait_for_job(dep_job, VMALERT_DEPLOY_WAIT_SECONDS)
                 self._check_deadline(deadline, "deploying_vmalert")
                 if status != 'succeeded':
                     raise RuntimeError(f"vmalert_deploy terminó en estado '{status}'")
                 steps = self._tenant_create_step(job_id, steps, "deploying_vmalert", 80)
-            else:
-                # Sin vmalert: publicar igual la ruta del tenant (vmauth) + scrape.
-                self._check_deadline(deadline, "regenerating_scrapes")
-                steps = self._tenant_create_step(job_id, steps, "regenerating_scrapes", 60, status="running")
-                dep_job = self._enqueue_standalone_regen(tenant_id)
-                status = self._wait_for_job(dep_job, REGEN_WAIT_SECONDS)
-                self._check_deadline(deadline, "regenerating_scrapes")
-                if status != 'succeeded':
-                    raise RuntimeError(f"vmalert_regen_scrapes terminó en estado '{status}'")
-                steps = self._tenant_create_step(job_id, steps, "regenerating_scrapes", 80)
+
+            self._check_deadline(deadline, "regenerating_scrapes")
+            steps = self._tenant_create_step(job_id, steps, "regenerating_scrapes", 82, status="running")
+            dep_job = self._enqueue_standalone_regen(tenant_id)
+            status = self._wait_for_job(dep_job, REGEN_WAIT_SECONDS)
+            self._check_deadline(deadline, "regenerating_scrapes")
+            if status != 'succeeded':
+                raise RuntimeError(f"vmalert_regen_scrapes terminó en estado '{status}'")
+            steps = self._tenant_create_step(job_id, steps, "regenerating_scrapes", 84)
 
             self._check_deadline(deadline, "provisioning_parses")
             steps = self._tenant_create_step(job_id, steps, "provisioning_parses", 85, status="running")
@@ -220,6 +245,96 @@ class TenantWorker(BaseWorker):
         try:
             cursor.execute("UPDATE tenants SET status=%s WHERE id=%s", (status, tenant_id))
             conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+
+    async def _wait_until_tenant_ready(self, job_id: str, tenant_id: int) -> None:
+        """Confirma que ingesta y vmalert responden antes de publicar el tenant.
+
+        El pipeline ya encola/termina los jobs dependientes, pero el servicio HTTP
+        puede tardar unos segundos en aceptar conexiones. Este paso mantiene el
+        tenant en `provisioning` y solo lo promueve a `active` cuando la ruta de
+        ingesta (y la de vmalert, si aplica) responden. Así la notificación de
+        éxito de `tenant_create` no llega antes de tiempo.
+        """
+        await self._update_progress(job_id, 96, "waiting_ready")
+        endpoints = await asyncio.to_thread(self._readiness_endpoints, tenant_id)
+        if not endpoints:
+            return
+        last_error: Optional[Exception] = None
+        async with httpx.AsyncClient(timeout=READY_CHECK_TIMEOUT_SECONDS) as client:
+            for attempt in range(1, READY_CHECK_ATTEMPTS + 1):
+                last_error = None
+                for name, url in endpoints.items():
+                    try:
+                        response = await client.get(url)
+                        if name == 'ingest_route':
+                            if self._route_probe_failed(response):
+                                raise httpx.HTTPError(
+                                    f"ingest_route not ready: {response.status_code}"
+                                )
+                            continue
+                        response.raise_for_status()
+                    except (httpx.HTTPError, httpx.TimeoutException) as exc:
+                        last_error = exc
+                        logger.debug(
+                            "tenant %s readiness %s attempt %s/%s failed: %s",
+                            tenant_id, name, attempt, READY_CHECK_ATTEMPTS, exc,
+                        )
+                        break
+                if last_error is None:
+                    await asyncio.to_thread(self._set_tenant_status, tenant_id, 'active')
+                    return
+                if attempt < READY_CHECK_ATTEMPTS:
+                    await asyncio.sleep(READY_CHECK_BACKOFF_SECONDS)
+        raise RuntimeError(f"tenant {tenant_id} no quedó listo: {last_error}")
+
+    @staticmethod
+    def _route_probe_failed(response) -> bool:
+        return response.status_code >= 500 or ROUTE_MISSING_MARKER in response.text.lower()
+
+    def _readiness_endpoints(self, tenant_id: int) -> dict:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """SELECT t.slug, t.type, t.has_alerts,
+                          COALESCE(
+                              n.service_ip, n.ip_address,
+                              (SELECT service_ip FROM infrastructure_nodes
+                               WHERE component_type = 'vmauth' AND is_active = TRUE
+                               ORDER BY id LIMIT 1),
+                              (SELECT ip_address FROM infrastructure_nodes
+                               WHERE component_type = 'vmauth' AND is_active = TRUE
+                               ORDER BY id LIMIT 1),
+                              '127.0.0.1'
+                          ),
+                          COALESCE(n.port, 8427),
+                          vi.port, COALESCE(vn.service_ip, vn.ip_address, '127.0.0.1')
+                   FROM tenants t
+                   LEFT JOIN infrastructure_nodes n ON n.id = t.vmauth_node_id
+                   LEFT JOIN tenant_vmalert_instances vi ON vi.tenant_id = t.id
+                   LEFT JOIN infrastructure_nodes vn ON vn.id = vi.instance_id
+                   WHERE t.id = %s""",
+                (tenant_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return {}
+            slug, t_type, has_alerts, ip, port, vi_port, vi_ip = row
+            if not slug or not ip:
+                return {}
+            base = f"http://{ip}:{port or 8427}"
+            endpoints = {'ingest': f"{base}/health"}
+            if t_type != 'profiles':
+                probe_path = INGEST_ROUTE_PROBES.get(t_type, INGEST_ROUTE_DEFAULT)
+                endpoints['ingest_route'] = (
+                    f"{base}{probe_path}?tenant={quote(slug, safe='')}"
+                )
+            if has_alerts and t_type != 'profiles' and vi_port:
+                endpoints['vmalert'] = f"http://{vi_ip}:{vi_port}/health"
+            return endpoints
         finally:
             cursor.close()
             conn.close()
@@ -338,32 +453,48 @@ class TenantWorker(BaseWorker):
                     (vmauth_node_id,)
                 )
 
-            # Retirar vmalert (best-effort, sincronico via job + espera acotada)
-            if t_type != 'profiles' and has_alerts:
+            needs_vmalert = t_type != 'profiles' and bool(has_alerts)
+            with planned_vmalert_silences(
+                [tenant_id] if needs_vmalert else [],
+                f"tenant_rollback:{tenant_id}",
+                settle_tenant_id=tenant_id if needs_vmalert else None,
+            ):
+                # Retirar vmalert (best-effort, sincronico via job + espera acotada)
+                if needs_vmalert:
+                    try:
+                        dep = self._enqueue_job(
+                            cursor, 'vmalert_undeploy', tenant_id, {'skip_regen': True, 'skip_silence': True}
+                        )
+                        conn.commit()
+                        self._wait_for_job(dep, VMALERT_DEPLOY_WAIT_SECONDS)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("Rollback: undeploy vmalert del tenant %s falló: %s", tenant_id, exc)
+
+                # Retirar el project de Parses (best-effort)
                 try:
-                    dep = self._enqueue_job(cursor, 'vmalert_undeploy', tenant_id)
-                    conn.commit()
-                    self._wait_for_job(dep, VMALERT_DEPLOY_WAIT_SECONDS)
+                    delete_tenant_parses(tenant_id)
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("Rollback: undeploy vmalert del tenant %s falló: %s", tenant_id, exc)
+                    logger.warning("Rollback: delete Parses del tenant %s falló: %s", tenant_id, exc)
 
-            # Retirar el project de Parses (best-effort)
-            try:
-                delete_tenant_parses(tenant_id)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Rollback: delete Parses del tenant %s falló: %s", tenant_id, exc)
+                cursor.execute("DELETE FROM tenant_datasources WHERE tenant_id=%s", (tenant_id,))
+                cursor.execute("DELETE FROM user_tenants WHERE tenant_id=%s", (tenant_id,))
+                cursor.execute("DELETE FROM role_tenants WHERE tenant_id=%s", (tenant_id,))
+                cursor.execute("UPDATE tenants SET status='failed' WHERE id=%s", (tenant_id,))
+                cursor.execute(
+                    """INSERT INTO audit_deletions (tenant_id, actor, reason, challenge_id, confirm_step1_at, outcome)
+                       VALUES (%s, NULL, %s, %s, NOW(), 'rolled_back')
+                       ON CONFLICT (challenge_id) DO NOTHING""",
+                    (tenant_id, f"rollback de alta: {type(error).__name__}: {str(error)[:180]}", f"rollback-{tenant_id}-{uuid.uuid4().hex[:16]}"),
+                )
+                conn.commit()
 
-            cursor.execute("DELETE FROM tenant_datasources WHERE tenant_id=%s", (tenant_id,))
-            cursor.execute("DELETE FROM user_tenants WHERE tenant_id=%s", (tenant_id,))
-            cursor.execute("DELETE FROM role_tenants WHERE tenant_id=%s", (tenant_id,))
-            cursor.execute("UPDATE tenants SET status='failed' WHERE id=%s", (tenant_id,))
-            cursor.execute(
-                """INSERT INTO audit_deletions (tenant_id, actor, reason, challenge_id, confirm_step1_at, outcome)
-                   VALUES (%s, NULL, %s, %s, NOW(), 'rolled_back')
-                   ON CONFLICT (challenge_id) DO NOTHING""",
-                (tenant_id, f"rollback de alta: {type(error).__name__}: {str(error)[:180]}", f"rollback-{tenant_id}-{uuid.uuid4().hex[:16]}"),
-            )
-            conn.commit()
+                if needs_vmalert:
+                    try:
+                        dep = self._enqueue_job(cursor, 'vmalert_regen_scrapes', tenant_id)
+                        conn.commit()
+                        self._wait_for_job(dep, REGEN_WAIT_SECONDS)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("Rollback: regen de rutas del tenant %s falló: %s", tenant_id, exc)
         finally:
             cursor.close()
             conn.close()
@@ -392,7 +523,7 @@ class TenantWorker(BaseWorker):
             cursor.execute("UPDATE tenants SET status='deleting' WHERE id=%s", (tenant_id,))
             conn.commit()
             cursor.execute(
-                "SELECT has_alerts, type, vmauth_node_id FROM tenants WHERE id=%s", (tenant_id,)
+                "SELECT has_alerts, type, vmauth_node_id, slug FROM tenants WHERE id=%s", (tenant_id,)
             )
             row = cursor.fetchone()
         finally:
@@ -402,23 +533,29 @@ class TenantWorker(BaseWorker):
             logger.info("tenant_delete %s: el tenant ya no existe", tenant_id)
             return
 
-        has_alerts, t_type, vmauth_node_id = row
+        has_alerts, t_type, vmauth_node_id, tenant_slug = row
         needs_vmalert = bool(has_alerts) and t_type != 'profiles'
 
         # Fase 2: undeploy vmalert (no aplica a pyroscope: no tiene vmalert).
         # skip_regen=True: el pipeline controla el regen por separado (vmauth se
         # retira despues de Parses).
-        if needs_vmalert:
-            self._update_progress_sync(job_id, 25, "undeploying_vmalert")
-            dep_job = self._enqueue_standalone_job('vmalert_undeploy', tenant_id, {'skip_regen': True})
-            if self._wait_for_job(dep_job, VMALERT_DEPLOY_WAIT_SECONDS) != 'succeeded':
-                raise RuntimeError("vmalert_undeploy no terminó correctamente")
+        with planned_vmalert_silences(
+            [tenant_id] if needs_vmalert else [],
+            f"tenant_delete:{job_id}",
+            job_id=job_id,
+            settle_tenant_id=tenant_id if needs_vmalert else None,
+        ):
+            if needs_vmalert:
+                self._update_progress_sync(job_id, 25, "undeploying_vmalert")
+                dep_job = self._enqueue_standalone_job('vmalert_undeploy', tenant_id, {'skip_regen': True, 'skip_silence': True})
+                if self._wait_for_job(dep_job, VMALERT_DEPLOY_WAIT_SECONDS) != 'succeeded':
+                    raise RuntimeError("vmalert_undeploy no terminó correctamente")
 
-        # Fase 3: retirar el scraping del tenant (vmagent).
-        self._update_progress_sync(job_id, 45, "removing_scrapes")
-        dep_job = self._enqueue_standalone_regen(tenant_id, components=['vmagent'])
-        if self._wait_for_job(dep_job, REGEN_WAIT_SECONDS) != 'succeeded':
-            raise RuntimeError("regen de vmagent no terminó correctamente")
+            # Fase 3: retirar el scraping del tenant (vmagent).
+            self._update_progress_sync(job_id, 45, "removing_scrapes")
+            dep_job = self._enqueue_standalone_regen(tenant_id, components=['vmagent'])
+            if self._wait_for_job(dep_job, REGEN_WAIT_SECONDS) != 'succeeded':
+                raise RuntimeError("regen de vmagent no terminó correctamente")
 
         # Fase 4: retirar el project de Parses del tenant (spec 008). El slug se
         # resuelve desde `tenants`; es idempotente. Propaga errores: no se purga
@@ -443,6 +580,16 @@ class TenantWorker(BaseWorker):
                     "UPDATE infrastructure_nodes SET tenants_count_active = GREATEST(tenants_count_active - 1, 0) WHERE id=%s",
                     (vmauth_node_id,)
                 )
+            cursor.execute(
+                """UPDATE alert_history
+                      SET status='resolved', ends_at=NOW(), updated_at=NOW()
+                    WHERE status='firing'
+                      AND (tenant_id=%s
+                           OR labels->>'tenant_id'=%s
+                           OR labels->>'exported_tenant_slug'=%s
+                           OR labels->>'tenant'=%s)""",
+                (tenant_id, str(tenant_id), tenant_slug, tenant_slug),
+            )
             cursor.execute("DELETE FROM tenant_datasources WHERE tenant_id=%s", (tenant_id,))
             cursor.execute("DELETE FROM user_tenants WHERE tenant_id=%s", (tenant_id,))
             cursor.execute("DELETE FROM role_tenants WHERE tenant_id=%s", (tenant_id,))

@@ -29,7 +29,7 @@ gitleaks dir .                                             # escaneo de secretos
 ## Estructura
 
 ```
-app/               # FastAPI: main, routers/, workers/, oidc*, ai_*, mailer, push
+app/               # FastAPI: main, alert_silences.py, routers/, workers/, oidc*, ai_*, mailer, push
 tests/             # pytest
 frontend/          # Consola web (servida por el backend)
 dashboards/        # Fuentes de dashboards (Grafana -> Perses)

@@ -4,6 +4,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
 import uuid
@@ -13,6 +14,7 @@ import httpx
 from psycopg2.extras import Json
 
 from .base import BaseWorker, enqueue_job_tx
+from ..alert_silences import planned_vmalert_silences
 from ..database import get_db_connection
 from ..internal_rules import INTERNAL_RULES
 
@@ -25,6 +27,10 @@ RELOAD_TIMEOUT_SECONDS = 10.0
 # tarda ~5 min; un 300s hardcodeado mató el deploy de METRICS antes de crear la
 # unit. Se parametriza por env para ajustarlo sin tocar código.
 VMALERT_PLAYBOOK_TIMEOUT_SECONDS = int(os.getenv("VMALERT_PLAYBOOK_TIMEOUT", "600"))
+VMALERT_PORT_MIN = 8881
+VMALERT_PORT_MAX = 65535
+VMALERT_PORT_POOL_DEFAULT = list(range(8881, 8980))
+VMALERT_FREE_PORT_MARKER = "VMALERT_FREE_PORT="
 
 # vmalert evalúa contra vmselect/vminsert CLUSTER (spec 008): el plugin espera
 # rutas con formato cluster de un solo segmento `<account>:<project>` (p. ej.
@@ -121,27 +127,25 @@ class VmalertWorker(BaseWorker):
         conn = get_db_connection()
         cursor = conn.cursor()
         try:
-            # Reconciliación de puertos determinísticos (spec 011 §4.5): el
-            # puerto esperado de cada tenant es 8880 + tenant_id. Si la BD registra
-            # otro (colisión histórica 8881/8881, puertos heredados del pool), se
-            # corrige tenants.vmalert_port y, si hay instancia desplegada, se
-            # re-encola un redeploy para confluir la unit en el nodo.
             cursor.execute(
-                """SELECT id, vmalert_port FROM tenants
+                """SELECT id, vmalert_port, vmalert_node_id FROM tenants
                    WHERE status = 'active'
                      AND has_alerts = TRUE
                      AND type <> 'profiles'
                      AND COALESCE(vmalert_node_id, 0) != 0"""
             )
-            for t_id, cur_port in cursor.fetchall():
-                expected_port = 8880 + t_id
-                if cur_port is not None and cur_port == expected_port:
+            for t_id, cur_port, node_id in cursor.fetchall():
+                needs_redeploy = not self._is_valid_vmalert_port(cur_port)
+                if not needs_redeploy:
+                    used_ports = self._used_vmalert_ports(cursor, node_id, t_id, cur_port)
+                    needs_redeploy = cur_port in used_ports
+                if not needs_redeploy:
                     continue
-                cursor.execute(
-                    "UPDATE tenants SET vmalert_port=%s WHERE id=%s",
-                    (expected_port, t_id)
+                logger.info(
+                    "Reconciliación de puerto: tenant %s con puerto %s inválido o en uso",
+                    t_id,
+                    cur_port,
                 )
-                logger.info("Reconciliación de puerto: tenant %s ahora usa %s", t_id, expected_port)
                 cursor.execute(
                     """SELECT 1 FROM tenant_vmalert_instances
                        WHERE tenant_id = %s AND status = 'deployed'""",
@@ -262,12 +266,22 @@ class VmalertWorker(BaseWorker):
         data = await asyncio.to_thread(self._deploy_load, job_id, tenant_id)
         if data is None:
             return
+        await self._update_progress(job_id, 25, "allocating_port")
+        await self._allocate_remote_port(job_id, data)
+        await self._update_progress(job_id, 40, "preparing_ansible")
         await self._run_ansible_vmalert(
             job_id, data['target_ip'], data['admin_user'], data['admin_pass'],
             data['vmalert_instances'], vmalert_rules=data['vmalert_rules'],
         )
+        await self._update_progress(job_id, 85, "waiting_health")
+        await self._http_wait_ready(f"http://{data['target_ip']}:{data['vmalert_port']}/health")
         await self._update_progress(job_id, 90, "registering_instance")
-        await asyncio.to_thread(self._deploy_persist, tenant_id, data)
+        await asyncio.to_thread(
+            self._deploy_persist,
+            tenant_id,
+            data,
+            bool((payload or {}).get('skip_regen')),
+        )
         await self._update_progress(job_id, 100, "done")
 
     def _deploy_load(self, job_id: str, tenant_id: int) -> Optional[dict]:
@@ -308,32 +322,12 @@ class VmalertWorker(BaseWorker):
 
             self._update_progress_sync(job_id, 20, "allocating_port")
 
-            # spec 011 §4.5: puerto determinístico por tenant (8880 + tenant_id).
-            # El 8880 queda reservado para la unit single anomalia-vmalert.service.
-            # La asignación determinística elimina la carrera entre workers
-            # concurrentes (spec 013) y auto-corrige colisiones históricas
-            # (p. ej. 8881/8881). Se fuerza SIEMPRE en el deploy para que la BD
-            # confluya; si otro tenant ya ocupa el puerto en el mismo nodo, se
-            # cae al pool por-tenant como fallback defensivo.
-            expected_port = 8880 + tenant_id
-            cursor.execute(
-                """SELECT 1
-                   FROM tenant_vmalert_instances tvi
-                   JOIN tenants t ON t.id = tvi.tenant_id AND t.id != %s
-                   WHERE tvi.instance_id = %s
-                     AND tvi.status = 'deployed'
-                     AND tvi.port = %s""",
-                (tenant_id, vmalert_node_id, expected_port)
+            port_candidates = self._vmalert_port_candidates(
+                cursor, vmalert_node_id, tenant_id, vmalert_port, vmalert_port
             )
-            if cursor.fetchone():
-                expected_port = self._allocate_vmalert_port(cursor, vmalert_node_id)
-            if vmalert_port != expected_port:
-                vmalert_port = expected_port
-                cursor.execute(
-                    "UPDATE tenants SET vmalert_port=%s WHERE id=%s",
-                    (vmalert_port, tenant_id)
-                )
-                conn.commit()
+            if not port_candidates:
+                raise RuntimeError(f"No hay puertos libres para el tenant {tenant_id}")
+            vmalert_port = port_candidates[0]
 
             self._update_progress_sync(job_id, 40, "preparing_ansible")
 
@@ -417,6 +411,7 @@ class VmalertWorker(BaseWorker):
                 'admin_pass': admin_pass,
                 'vmalert_node_id': vmalert_node_id,
                 'vmalert_port': vmalert_port,
+                'port_candidates': port_candidates,
                 'slug': slug,
                 'rules_yaml': rules_yaml,
                 'vmalert_instances': vmalert_instances,
@@ -426,8 +421,12 @@ class VmalertWorker(BaseWorker):
             cursor.close()
             conn.close()
 
-    def _deploy_persist(self, tenant_id: int, data: dict) -> None:
-        """Fase de escritura del deploy: conn propia, commit corto (spec 011 §4.2)."""
+    def _deploy_persist(self, tenant_id: int, data: dict, skip_regen: bool = False) -> None:
+        """Fase de escritura del deploy: conn propia, commit corto (spec 011 §4.2).
+
+        ``skip_regen`` lo usa el pipeline de alta: orquestador encola el regen
+        cuando el tenant ya puede publicarse.
+        """
         conn = get_db_connection()
         cursor = conn.cursor()
         try:
@@ -455,6 +454,11 @@ class VmalertWorker(BaseWorker):
                 )
             )
 
+            cursor.execute(
+                "UPDATE tenants SET vmalert_port=%s WHERE id=%s",
+                (data['vmalert_port'], tenant_id)
+            )
+
             # Increment node tenant count
             cursor.execute(
                 "UPDATE infrastructure_nodes SET tenants_count_active = tenants_count_active + 1 WHERE id=%s",
@@ -462,7 +466,8 @@ class VmalertWorker(BaseWorker):
             )
 
             # Regen incremental de scrapes vmagent + rutas vmauth (spec 011 §4.3/§4.4)
-            self._enqueue_regenerate_scrapes(cursor, tenant_id)
+            if not skip_regen:
+                self._enqueue_regenerate_scrapes(cursor, tenant_id)
 
             conn.commit()
         finally:
@@ -471,21 +476,27 @@ class VmalertWorker(BaseWorker):
 
     async def _process_vmalert_undeploy(self, job_id: str, tenant_id: int, payload: dict):
         """Undeploy vmalert instance for tenant (sin txn durante Ansible, spec 011 §4.2)."""
-        await self._update_progress(job_id, 10, "preparing")
-        data = await asyncio.to_thread(self._undeploy_load, job_id, tenant_id)
-        if data is None:
-            return
-        await self._update_progress(job_id, 60, "running_ansible")
+        managed_silence = not bool((payload or {}).get('skip_silence'))
+        with planned_vmalert_silences(
+            [tenant_id] if managed_silence else [],
+            f"vmalert_undeploy:{job_id}",
+            job_id=job_id,
+        ):
+            await self._update_progress(job_id, 10, "preparing")
+            data = await asyncio.to_thread(self._undeploy_load, job_id, tenant_id)
+            if data is None:
+                return
+            await self._update_progress(job_id, 60, "running_ansible")
 
-        # Run Ansible playbook with state=absent
-        await self._run_ansible_vmalert(
-            job_id, data['target_ip'], data['admin_user'], data['admin_pass'],
-            data['vmalert_instances'], extra_vars={'vmalert_state': 'absent'}
-        )
+            # Run Ansible playbook with state=absent
+            await self._run_ansible_vmalert(
+                job_id, data['target_ip'], data['admin_user'], data['admin_pass'],
+                data['vmalert_instances'], extra_vars={'vmalert_state': 'absent'}
+            )
 
-        await self._update_progress(job_id, 90, "cleanup_db")
-        await asyncio.to_thread(self._undeploy_persist, tenant_id, data, bool((payload or {}).get('skip_regen')))
-        await self._update_progress(job_id, 100, "done")
+            await self._update_progress(job_id, 90, "cleanup_db")
+            await asyncio.to_thread(self._undeploy_persist, tenant_id, data, bool((payload or {}).get('skip_regen')))
+            await self._update_progress(job_id, 100, "done")
 
     def _undeploy_load(self, job_id: str, tenant_id: int) -> Optional[dict]:
         """Fase de lectura del undeploy: transacción corta en thread (spec 011 §4.2).
@@ -500,7 +511,7 @@ class VmalertWorker(BaseWorker):
                 """SELECT t.id, t.name, t.slug, t.vmalert_node_id, t.vmalert_port,
                           tvi.instance_id, tvi.port
                    FROM tenants t
-                   LEFT JOIN tenant_vmalert_instances tvi ON tvi.tenant_id = t.id AND tvi.status = 'deployed'
+                   LEFT JOIN tenant_vmalert_instances tvi ON tvi.tenant_id = t.id
                    WHERE t.id = %s""",
                 (tenant_id,)
             )
@@ -511,9 +522,11 @@ class VmalertWorker(BaseWorker):
 
             t_id, name, slug, vmalert_node_id, vmalert_port, instance_id, instance_port = row
 
-            if not vmalert_node_id or not instance_id:
-                logger.info("No vmalert instance to undeploy for tenant %s", tenant_id)
+            if not vmalert_node_id:
+                logger.info("No vmalert node to undeploy for tenant %s", tenant_id)
                 return None
+
+            instance_id = instance_id or vmalert_node_id
 
             self._update_progress_sync(job_id, 20, "preparing_ansible")
 
@@ -595,8 +608,14 @@ class VmalertWorker(BaseWorker):
         """
         undeploy_payload = dict(payload or {})
         undeploy_payload['skip_regen'] = True
-        await self._process_vmalert_undeploy(job_id, tenant_id, undeploy_payload)
-        await self._process_vmalert_deploy(job_id, tenant_id, payload)
+        undeploy_payload['skip_silence'] = True
+        with planned_vmalert_silences(
+            [tenant_id],
+            f"vmalert_redeploy:{job_id}",
+            job_id=job_id,
+        ):
+            await self._process_vmalert_undeploy(job_id, tenant_id, undeploy_payload)
+            await self._process_vmalert_deploy(job_id, tenant_id, payload)
 
     async def _process_vmalert_reload(self, job_id: str, tenant_id: int, payload: dict):
         """Reload vmalert instance via HTTP /-/reload (spec 011: timeout + healthcheck + retry)."""
@@ -753,7 +772,7 @@ class VmalertWorker(BaseWorker):
         """
         components = (payload or {}).get('components') or ['vmagent', 'vmauth']
         await self._update_progress(job_id, 10, "collecting_infra")
-        data = await asyncio.to_thread(self._regen_scrapes_load, job_id)
+        data = await asyncio.to_thread(self._regen_scrapes_load, job_id, ref_id)
         base_ev = data['base_ev']
         vmagent_node = data['vmagent_node']
         vmauth_nodes = data['vmauth_nodes']
@@ -799,8 +818,12 @@ class VmalertWorker(BaseWorker):
 
         await self._update_progress(job_id, 100, "done")
 
-    def _regen_scrapes_load(self, job_id: str) -> dict:
-        """Fase de lectura del regen_scrapes: transacción corta en thread (spec 011 §4.2)."""
+    def _regen_scrapes_load(self, job_id: str, ref_id: int) -> dict:
+        """Fase de lectura del regen_scrapes: transacción corta en thread (spec 011 §4.2).
+
+        El tenant disparador se incluye aunque siga en ``provisioning`` para que
+        su ruta vmauth y su scrape se publiquen antes de marcarlo activo.
+        """
         conn = get_db_connection()
         cursor = conn.cursor()
         try:
@@ -839,9 +862,12 @@ class VmalertWorker(BaseWorker):
                 """SELECT t.slug, t.name, t.org_id_upper, tvi.port,
                           n.service_ip, n.ip_address, tvi.instance_id, t.id
                    FROM tenant_vmalert_instances tvi
-                   JOIN tenants t ON t.id = tvi.tenant_id AND t.status = 'active'
+                   JOIN tenants t ON t.id = tvi.tenant_id
                    JOIN infrastructure_nodes n ON n.id = tvi.instance_id
-                   WHERE tvi.status = 'deployed'"""
+                   WHERE tvi.status = 'deployed'
+                     AND (t.status = 'active'
+                          OR (t.status = 'provisioning' AND t.id = %s))""",
+                (ref_id or 0,),
             )
             vmalert_instances = [
                 {
@@ -867,11 +893,14 @@ class VmalertWorker(BaseWorker):
             cursor.execute(
                 """SELECT slug, type, org_id_upper, account_id, project_id, vmauth_node_id
                    FROM tenants
-                   WHERE deleted_at IS NULL AND status = 'active'
+                   WHERE deleted_at IS NULL
+                     AND (status = 'active'
+                          OR (status = 'provisioning' AND id = %s))
                      AND is_internal = FALSE
                      AND slug IS NOT NULL
                      AND (type = 'profiles' OR (account_id IS NOT NULL AND project_id IS NOT NULL))
-                   ORDER BY id ASC"""
+                   ORDER BY id ASC""",
+                (ref_id or 0,),
             )
             tenants_routing = [
                 {
@@ -899,6 +928,32 @@ class VmalertWorker(BaseWorker):
         finally:
             cursor.close()
             conn.close()
+
+    async def _http_wait_ready(self, url: str):
+        """Espera a que un endpoint HTTP responda 2xx antes de publicarlo.
+
+        Evita que la instancia se registre como `deployed` (y dispare la alerta
+        de 'vmalert caído') mientras el servicio recién arrancado aún no acepta
+        conexiones. Usa más intentos que un reload porque un deploy en frío
+        puede tardar en iniciar la unidad systemd.
+        """
+        attempts = 30
+        timeout = 5.0
+        last_error: Optional[Exception] = None
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            for attempt in range(1, attempts + 1):
+                try:
+                    response = await client.get(url)
+                    response.raise_for_status()
+                    return
+                except (httpx.HTTPError, httpx.TimeoutException) as exc:
+                    last_error = exc
+                    logger.debug(
+                        "healthcheck %s attempt %s/%s failed: %s", url, attempt, attempts, exc
+                    )
+                    if attempt < attempts:
+                        await asyncio.sleep(2)
+        raise RuntimeError(f"healthcheck failed after {attempts} attempts for {url}: {last_error}")
 
     async def _http_reload_vmalert(self, base_url: str):
         """Healthcheck + POST /-/reload con reintentos y backoff (spec 011).
@@ -929,32 +984,111 @@ class VmalertWorker(BaseWorker):
         if last_error is not None:
             raise RuntimeError(f"vmalert reload failed after {RELOAD_ATTEMPTS} attempts: {last_error}")
 
-    def _allocate_vmalert_port(self, cursor, node_id: int) -> int:
-        """Allocate next available port from node's ports_pool.
+    @staticmethod
+    def _coerce_vmalert_port(value) -> Optional[int]:
+        try:
+            port = int(value)
+        except (TypeError, ValueError):
+            return None
+        if VMALERT_PORT_MIN <= port <= VMALERT_PORT_MAX:
+            return port
+        return None
 
-        El pool por-tenant arranca en 8881 (spec 011 §4.5): el 8880 está
-        reservado para la unit single `anomalia-vmalert.service`.
-        """
+    @classmethod
+    def _is_valid_vmalert_port(cls, value) -> bool:
+        return cls._coerce_vmalert_port(value) is not None
+
+    @classmethod
+    def _normalize_vmalert_ports_pool(cls, value) -> list[int]:
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (TypeError, ValueError):
+                value = None
+        if isinstance(value, dict):
+            value = value.get('ports') or value.get('vmalert_ports') or []
+        if not isinstance(value, (list, tuple, set)):
+            value = VMALERT_PORT_POOL_DEFAULT
+        ports: list[int] = []
+        for raw in value:
+            port = cls._coerce_vmalert_port(raw)
+            if port is not None and port not in ports:
+                ports.append(port)
+        return ports or list(VMALERT_PORT_POOL_DEFAULT)
+
+    def _used_vmalert_ports(self, cursor, node_id: int, tenant_id: int, current_port=None) -> set[int]:
+        used: set[int] = set()
+        for raw in PORT_DEFAULTS.values():
+            port = self._coerce_vmalert_port(raw)
+            if port is not None:
+                used.add(port)
+
+        cursor.execute(
+            "SELECT port FROM infrastructure_nodes WHERE id=%s AND port IS NOT NULL",
+            (node_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            port = self._coerce_vmalert_port(row[0])
+            if port is not None:
+                used.add(port)
+
+        cursor.execute(
+            """SELECT port FROM tenant_vmalert_instances
+               WHERE instance_id=%s AND status <> 'undeployed' AND port IS NOT NULL""",
+            (node_id,)
+        )
+        for (raw,) in cursor.fetchall():
+            port = self._coerce_vmalert_port(raw)
+            if port is not None:
+                used.add(port)
+
+        cursor.execute(
+            """SELECT host_port FROM port_mapping
+               WHERE instance_id=%s AND host_port IS NOT NULL""",
+            (node_id,)
+        )
+        for (raw,) in cursor.fetchall():
+            port = self._coerce_vmalert_port(raw)
+            if port is not None:
+                used.add(port)
+
+        cursor.execute(
+            """SELECT vmalert_port FROM tenants
+               WHERE vmalert_node_id=%s AND id<>%s AND vmalert_port IS NOT NULL""",
+            (node_id, tenant_id)
+        )
+        for (raw,) in cursor.fetchall():
+            port = self._coerce_vmalert_port(raw)
+            if port is not None:
+                used.add(port)
+
+        own_port = self._coerce_vmalert_port(current_port)
+        if own_port is not None:
+            used.discard(own_port)
+        return used
+
+    def _vmalert_port_candidates(self, cursor, node_id: int, tenant_id: int,
+                                 preferred_port=None, current_port=None) -> list[int]:
+        used_ports = self._used_vmalert_ports(cursor, node_id, tenant_id, current_port)
         cursor.execute(
             "SELECT ports_pool FROM infrastructure_nodes WHERE id=%s",
             (node_id,)
         )
         row = cursor.fetchone()
-        ports_pool = row[0] if row and row[0] else list(range(8881, 8980))
+        ports_pool = self._normalize_vmalert_ports_pool(row[0] if row else None)
+        tail_start = max(ports_pool) + 1 if ports_pool else VMALERT_PORT_MIN
+        tail_end = min(tail_start + 200, VMALERT_PORT_MAX + 1)
 
-        # Find first unused port
-        cursor.execute(
-            "SELECT port FROM tenant_vmalert_instances WHERE instance_id=%s AND status='deployed'",
-            (node_id,)
-        )
-        used_ports = {r[0] for r in cursor.fetchall()}
-
-        for port in ports_pool:
-            if port not in used_ports:
-                return port
-
-        # Fallback: max used + 1 (siempre >= 8882 porque 8881 ya está usado)
-        return max(used_ports) + 1
+        candidates: list[int] = []
+        raw_candidates = [preferred_port, 8880 + tenant_id, *ports_pool]
+        raw_candidates.extend(range(tail_start, tail_end))
+        for raw in raw_candidates:
+            port = self._coerce_vmalert_port(raw)
+            if port is None or port in used_ports or port in candidates:
+                continue
+            candidates.append(port)
+        return candidates
 
     def _get_alertmanager_url(self, cursor) -> str:
         """Get Alertmanager URL from infrastructure."""
@@ -1051,11 +1185,6 @@ class VmalertWorker(BaseWorker):
         referencie la variable (spec 011 §4.2). Se materializan a archivos
         temporales y los extra-vars solo llevan las rutas.
         """
-        playbook_path = f"/app/playbooks/{playbook}"
-        if not os.path.isfile(playbook_path):
-            raise FileNotFoundError(f"Playbook not found: {playbook_path}")
-
-        # Prepare extra vars
         ev = {
             'ansible_user': admin_user,
             'servicio': 'vmalert',
@@ -1068,13 +1197,8 @@ class VmalertWorker(BaseWorker):
             ev['ansible_password'] = admin_pass
             ev['ansible_become_password'] = admin_pass
 
-        # Write extra vars to temp file (secure)
         secret_dir = tempfile.mkdtemp(prefix="anomalia-ansible-vmalert-")
-        extra_vars_path = os.path.join(secret_dir, "extra-vars.json")
         try:
-            # Materializar reglas guardadas en la BD a archivos temporales.
-            # NO se usa copy.content en los playbooks: prometheus templating con
-            # {{ ... }} (labels de alerta) sería evaluado por Jinja y corrupto.
             rule_files = []
             for rule in (vmalert_rules or []):
                 rules_yaml = rule.get('rules_yaml')
@@ -1090,51 +1214,93 @@ class VmalertWorker(BaseWorker):
                     })
             if rule_files:
                 ev['vmalert_rules_files'] = rule_files
-
-            fd = os.open(extra_vars_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with os.fdopen(fd, "w") as f:
-                json.dump(ev, f)
-
-            cmd = [
-                "ansible-playbook",
-                "-i", f"{target_ip},",
-                playbook_path,
-                "--extra-vars", f"@{extra_vars_path}",
-            ]
-
-            logger.info("Running vmalert playbook for job %s on %s", job_id, target_ip)
-
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd="/app/playbooks",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=VMALERT_PLAYBOOK_TIMEOUT_SECONDS,
-                )
-            except asyncio.TimeoutError:
-                proc.kill()
-                await proc.wait()
-                raise TimeoutError(
-                    f"vmalert playbook timeout ({VMALERT_PLAYBOOK_TIMEOUT_SECONDS}s)"
-                )
-
-            if proc.returncode != 0:
-                error_msg = f"STDOUT:\n{stdout.decode()}\n\nSTDERR:\n{stderr.decode()}"
-                raise RuntimeError(f"vmalert playbook failed: {error_msg}")
-
-            logger.info("vmalert playbook completed for job %s", job_id)
-
+            await self._run_ansible_command(job_id, target_ip, playbook, ev, secret_dir)
         finally:
-            # Cleanup temp files (extra vars + reglas materializadas)
             try:
                 shutil.rmtree(secret_dir, ignore_errors=True)
             except Exception:
                 pass
+
+    async def _run_ansible_command(self, job_id: str, target_ip: str, playbook: str,
+                                   extra_vars: dict, secret_dir: str) -> str:
+        playbook_path = f"/app/playbooks/{playbook}"
+        if not os.path.isfile(playbook_path):
+            raise FileNotFoundError(f"Playbook not found: {playbook_path}")
+
+        extra_vars_path = os.path.join(secret_dir, "extra-vars.json")
+        fd = os.open(extra_vars_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump(extra_vars, f)
+
+        cmd = [
+            "ansible-playbook",
+            "-i", f"{target_ip},",
+            playbook_path,
+            "--extra-vars", f"@{extra_vars_path}",
+        ]
+
+        logger.info("Running %s for job %s on %s", playbook, job_id, target_ip)
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd="/app/playbooks",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=VMALERT_PLAYBOOK_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise TimeoutError(
+                f"vmalert playbook timeout ({VMALERT_PLAYBOOK_TIMEOUT_SECONDS}s)"
+            )
+
+        if proc.returncode != 0:
+            error_msg = f"STDOUT:\n{stdout.decode()}\n\nSTDERR:\n{stderr.decode()}"
+            raise RuntimeError(f"vmalert playbook failed: {error_msg}")
+
+        logger.info("%s completed for job %s", playbook, job_id)
+        return stdout.decode()
+
+    @staticmethod
+    def _parse_allocated_port(stdout: str) -> int:
+        match = re.search(rf"{re.escape(VMALERT_FREE_PORT_MARKER)}(\d+)\b", stdout)
+        if not match:
+            raise RuntimeError("El playbook de asignación no devolvió un puerto libre")
+        return int(match.group(1))
+
+    async def _allocate_remote_port(self, job_id: str, data: dict) -> None:
+        ev = {
+            'ansible_user': data['admin_user'],
+            'servicio': 'vmalert',
+            'gestionar_servicios': True,
+            'vmalert_tenant_slug': data['slug'],
+            'vmalert_port_candidates': data['port_candidates'],
+        }
+        if data['admin_pass']:
+            ev['ansible_password'] = data['admin_pass']
+            ev['ansible_become_password'] = data['admin_pass']
+
+        secret_dir = tempfile.mkdtemp(prefix="anomalia-ansible-vmalert-port-")
+        try:
+            stdout = await self._run_ansible_command(
+                job_id, data['target_ip'], "allocate-vmalert-port.yml", ev, secret_dir
+            )
+        finally:
+            try:
+                shutil.rmtree(secret_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+        port = self._parse_allocated_port(stdout)
+        if port not in data['port_candidates']:
+            raise RuntimeError(f"Puerto {port} devuelto por Ansible no estaba en los candidatos")
+        data['vmalert_port'] = port
+        data['vmalert_instances'][0]['port'] = port
+        logger.info("Puerto vmalert %s asignado al tenant %s (job %s)", port, data['slug'], job_id)
 
     async def _update_progress(self, job_id: str, progress: int, phase: str):
         """Update job progress (en thread: nunca bloquea el event loop)."""

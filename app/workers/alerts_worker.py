@@ -345,16 +345,16 @@ class AlertWorker(BaseWorker):
         return "\n".join(lines) or (alert.get("summary") or "Alerta sin detalle.")
 
     @staticmethod
-    def _dispatch_resolved(alert: Dict[str, Any]) -> None:
+    async def _dispatch_resolved(alert: Dict[str, Any]) -> None:
         """Notifica la regularización de la alerta sin IA (spec 018)."""
         tenant_id = alert.get("tenant_id")
         title = f"[RESUELTA] {alert.get('alertname') or 'Alerta'}"
         body = "La alerta se ha regularizado."
         link = "/?tab=alerts"
-        users = AlertWorker._load_alert_users(tenant_id)
+        users = await asyncio.to_thread(AlertWorker._load_alert_users, tenant_id)
         for user_id in users:
             try:
-                notify_user(
+                await notify_user(
                     user_id,
                     "alert_resolved",
                     title,
@@ -370,7 +370,8 @@ class AlertWorker(BaseWorker):
                 )
 
         try:
-            send_push_to_tenant(
+            await asyncio.to_thread(
+                send_push_to_tenant,
                 tenant_id,
                 title,
                 body,

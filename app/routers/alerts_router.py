@@ -117,6 +117,14 @@ def _serialize(row) -> Dict[str, Any]:
     }
 
 
+NO_ORPHAN_FIRING = """NOT (
+    a.status = 'firing'
+    AND a.tenant_id IS NULL
+    AND (COALESCE(a.labels->>'tenant_id', '') <> ''
+         OR COALESCE(a.labels->>'exported_tenant_slug', '') <> ''
+         OR COALESCE(a.labels->>'tenant', '') <> '')
+)"""
+
 _SELECT_COLUMNS = """
     a.id, a.tenant_id, t.name, a.alertname, a.severity, a.severity_source,
     a.summary, a.description, a.ai_summary, a.ai_root_cause, a.ai_checks,
@@ -136,7 +144,7 @@ async def recent_alerts(
     cursor = conn.cursor()
     try:
         tenant_ids = _accessible_tenant_ids(cursor, payload)
-        conditions = ["a.status = 'firing'"]
+        conditions = ["a.status = 'firing'", NO_ORPHAN_FIRING]
         params: List[Any] = []
         if tenant_ids is not None:
             if not tenant_ids:
@@ -176,7 +184,7 @@ async def alert_history(
         if tenant_ids is not None and not tenant_ids:
             return {"items": [], "total": 0}
 
-        conditions: List[str] = []
+        conditions: List[str] = [NO_ORPHAN_FIRING]
         params: List[Any] = []
         if tenant_ids is not None:
             conditions.append("a.tenant_id = ANY(%s)")

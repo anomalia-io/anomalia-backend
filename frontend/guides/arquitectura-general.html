@@ -92,7 +92,7 @@ a.inline{color:#7dd3fc;text-decoration:underline;text-underline-offset:3px}
 <div class="overflow-x-auto"><table class="tbl">
 <thead><tr><th>Capa</th><th>Componentes</th><th>Responsabilidad</th></tr></thead>
 <tbody>
-<tr><td>Cliente</td><td>Panel web vanilla JS, app Flutter</td><td>Interacción, JWT en almacenamiento local, tarjetas por tenant.</td></tr>
+<tr><td>Cliente</td><td>Panel web vanilla JS, app Flutter</td><td>Interacción, JWT en almacenamiento local, tarjetas por tenant; el detalle de alertas abre <code>modal-alert-detail</code> y los diálogos usan <code>modal-confirm</code> / <code>modal-prompt</code>.</td></tr>
 <tr><td>Gateway</td><td>Nginx (80/443/8443) + FastAPI/Uvicorn (8000)</td><td>Terminación TLS y redirect en Nginx; autenticación, RBAC, webhooks, tickets y reenvío con scoping en FastAPI.</td></tr>
 <tr><td>Estado</td><td>PostgreSQL 15, Redis/RQ-like cuando aplica</td><td>Config, usuarios, roles, perfiles, tenants, jobs y notificaciones; señales/colas ligeras.</td></tr>
 <tr><td>Ejecución</td><td>WorkerSupervisor, TenantWorker, VmalertWorker</td><td>Jobs duraderos, reconciliación y tareas dependientes.</td></tr>
@@ -149,12 +149,12 @@ Tipos:
   vmalert_redeploy · vmalert_reload · vmalert_sync_rules
   vmalert_regen_scrapes · alert_dispatch (según despliegue)</pre>
 <p class="text-sm text-slate-300 mt-3">El polling usa <code>FOR UPDATE SKIP LOCKED</code>, marca <code>running</code> y hace commit en la misma transacción. El estado terminal es <code>succeeded</code> (no <code>completed</code>). Con heartbeat y timeout se recuperan huérfanos tras un reinicio.</p>
-<div class="note mt-3">Las notificaciones se emiten al finalizar un job con <code>created_by</code> no nulo. Los jobs internos no notifican. Ver <a class="inline" href="alertas-notificaciones.html">alertas y notificaciones</a>.</div>
+<div class="note mt-3">Las notificaciones se emiten al finalizar un job con <code>created_by</code> no nulo. Los jobs internos no notifican. Los mantenimientos de vmalert abren un silence planificado de <code>VmalertTenantDown</code> por tenant y lo levantan al terminar. Ver <a class="inline" href="alertas-notificaciones.html">alertas y notificaciones</a>.</div>
 </section>
 <section class="glass-card p-6">
 <h2 class="mb-3"><i class="fa-solid fa-boxes-stacked text-pink-300 mr-2" aria-hidden="true"></i>Tenants internos y control</h2>
 <p class="text-sm text-slate-300">Los tenants <code>is_internal=TRUE</code> (METRICS, TRACES, PROFILES, AUDIT_LOGS) se siembran automáticamente y se reconcilian en cada arranque del worker. Sus reglas son canónicas, viven en <code>app/internal_rules/</code> y son inmutables desde la API (<code>409</code>).</p>
-<div class="danger mt-3">PROFILES no lleva instancia vmalert: Pyroscope no expone una API PromQL compatible. Su salud se vigila desde el tenant METRICS. El puerto <code>8880 + tenant_id</code> aplica a los tenants con vmalert.</div>
+<div class="danger mt-3">PROFILES no lleva instancia vmalert: Pyroscope no expone una API PromQL compatible. Su salud se vigila desde el tenant METRICS. El puerto de los tenants con vmalert se asigna en remoto con <code>allocate-vmalert-port.yml</code>, no de forma determinística a partir del ID.</div>
 </section>
 </article>
 <aside class="inspector space-y-5">
